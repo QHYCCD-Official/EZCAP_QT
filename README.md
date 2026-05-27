@@ -2,7 +2,7 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Qt](https://img.shields.io/badge/Qt-5.12.12-brightgreen.svg)](https://www.qt.io/)
-[![OpenCV](https://img.shields.io/badge/OpenCV-4.x-blue.svg)](https://opencv.org/)
+[![OpenCV](https://img.shields.io/badge/OpenCV-3.4.16-blue.svg)](https://opencv.org/)
 [![Platform](https://img.shields.io/badge/Platform-Windows%20%7C%20Linux%20%7C%20macOS-lightgrey.svg)]()
 
 **EZCAP_QT** 是一款基于 Qt 框架开发的 **QHYCCD 天文相机采集控制软件**，提供实时图像采集、显示、处理、温控管理、暗场校准、FITS 格式导出等完整的天文摄影功能。
@@ -73,7 +73,7 @@ EZCAP_QT/
 | 组件 | 版本/说明 |
 |------|----------|
 | Qt | 5.12.12 / 5.13.0 (MinGW 64-bit) |
-| OpenCV | 4.x |
+| OpenCV | 3.4.16 |
 | 构建系统 | CMake 3.16+ / qmake |
 | 相机 SDK | QHYCCD SDK |
 | MCP Server | Node.js 18+ |
@@ -92,7 +92,7 @@ EZCAP_QT/
 
 ### 前置依赖
 - **Qt 5.12.12+** (MinGW 64-bit 推荐)
-- **OpenCV 4.x**
+- **OpenCV 3.4.16**
 - **CMake 3.16+**
 - **QHYCCD SDK** (从 [QHYCCD 官网](https://www.qhyccd.com/) 下载)
 
