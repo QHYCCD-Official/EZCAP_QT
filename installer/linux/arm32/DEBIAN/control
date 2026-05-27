@@ -1,0 +1,8 @@
+Package: EZCAP
+Priority: optional
+Section: utils
+Maintainer: QHYCCD
+Architecture: armhf
+Version: 21.5.17.0
+Depends:
+Description: EZCAP for Arm32

@@ -1,0 +1,42 @@
+# Build outputs
+build/
+output/
+
+# Dependencies (large binary libraries)
+Depend/
+
+# IDE
+.vscode/
+*.user
+*.qws
+
+# Compiled objects
+*.o
+*.obj
+*.lib
+*.dll
+*.exe
+*.a
+*.so
+
+# Qt
+*.moc
+*.ui.rc
+Makefile*
+*.pro.user
+
+# CMake
+cmake-build-*/
+
+# Windows
+*.tmp
+*.bak
+*.log
+Thumbs.db
+Desktop.ini
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+".svn/"  

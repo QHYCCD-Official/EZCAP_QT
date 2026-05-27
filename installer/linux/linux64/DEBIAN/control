@@ -1,0 +1,8 @@
+Package: EZCAP
+Priority: optional
+Section: utils
+Maintainer: QHYCCD
+Architecture: amd64
+Version: 21.5.18.0
+Depends:
+Description: EZCAP for x86_64 Ubuntu

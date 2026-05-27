@@ -1,0 +1,9 @@
+<?xml version="1.0"?>
+<Package>
+    <DisplayName>ezcap_qt file</DisplayName>
+    <Description>Test and debug qhyccd cameras</Description>
+    <Version>1.0.1</Version>
+    <ReleaseDate>2022-02-19</ReleaseDate>
+    <Default>true</Default>
+    <Script>installscript.js</Script>
+</Package>

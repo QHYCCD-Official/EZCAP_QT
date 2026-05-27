@@ -1,0 +1,105 @@
+Create an installer that uses the extract archive hook to modify the target path.
+
+Generate installer with
+
+binarycreator --offline-only -c config/config.xml -p packages installer
+
+
+
+
+
+==========================================
+
+
+lsb_release -a
+No LSB modules are available.
+Distributor ID:	Ubuntu
+Description:	Ubuntu 20.04.3 LTS
+Release:	20.04
+Codename:	focal
+mars@mars-System-Product-N
+
+No LSB modules are available.
+Distributor ID:	Ubuntu
+Description:	Ubuntu 18.04.6 LTS
+Release:	18.04
+Codename:	bionic
+
+
+### Ubuntu20 
+# software&update 修改国内服务器 download from ：aliyun
+
+#disable vnc encryption ：  sudo apt install dconf-editor ; org.gnome.desktop.remote-access/require-encryption=false
+
+# terminal update apt
+sudo apt update
+sudo apt upgrade
+
+
+# install subversion
+sudo apt install subversion
+
+svn co svn://**************/EZCAP_QT --username may***
+
+
+# install ftp client 传输qt 安装包 或者 编译文件
+sudo apt install filezilla
+
+
+安装系统默认Qt  
+sudo apt install qt5-default
+sudo apt-get install build-essential
+
+
+安装C++ compiler 
+sudo apt install clang
+
+
+
+安装 qt-opensource-linux-x64-5.14.1.run
+安装 QtInstallerFramework-linux-x64.run
+帐号密码 27*****@qq.com pwd:Qt3...........
+不选择安装Qt 而使用系统安装默认qt库 
+
+
+
+sudo apt install curl
+cd ~/Downloads
+ curl -O  https://www.qhyccd.cn/file/repository/publish/SDK/211012/sdk_linux64_21.10.12.tgz
+ tar xvf sdk_linux64_21.10.12.tgz
+ cd sdk_linux64_21.10.12
+sudo bash ./install.sh
+
+
+
+sudo apt install libcfitsio-*
+sudo apt install libusb-1.0-*
+sudo apt install libopencv-imgproc*
+sudo apt install libopencv-imgcodecs*
+sudo apt install libopencv-highgui*
+
+#for develop
+sudo apt install libopencv-*
+
+暂时注释掉 cvSaveImage(相关代码);
+编译Release EZCAP_QT
+修改ezcap_qt_ifw.pro binarycreator 路径
+example.commands = /home/mars/Qt/QtIFW-3.2.2/bin/binarycreator -c $$PWD/config/config.xml -p $$PWD/packages ${QMAKE_FILE_OUT}
+
+找到编译结果文件 ezcap_qt_installer，打包（不打包可能会发生文件可执行格式错误，目前原因不确定） （tar gz ）
+
+
+========================================================
+
+在终端中解压并运行安装程序
+sudo apt install curl
+cd ~/Downloads
+ curl -O  https://www.qhyccd.cn/file/repository/publish/SDK/211012/sdk_linux64_21.10.12.tgz
+ tar xvf sdk_linux64_21.10.12.tgz
+ cd sdk_linux64_21.10.12
+ 
+
+sudo apt install libcfitsio-*
+
+桌面快捷方式在ubuntu20.4后需要手动点Allow Launching，暂时没找到合适的其他方法
+
