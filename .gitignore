@@ -3,7 +3,7 @@ build/
 output/
 
 # Dependencies (large binary libraries)
-Depend/
+# Depend/
 
 # IDE
 .vscode/
@@ -13,8 +13,8 @@ Depend/
 # Compiled objects
 *.o
 *.obj
-*.lib
-*.dll
+# *.lib
+# *.dll
 *.exe
 *.a
 *.so
