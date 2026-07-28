@@ -84,6 +84,7 @@ dllqhyccd::dllqhyccd()
         RegisterPnpEventOut             = (QTRegisterPnpEventOut)dll.resolve("RegisterPnpEventOut");
         RegisterDataEventSingle         = (QTRegisterDataEventSingle)dll.resolve("RegisterDataEventSingle");
         RegisterDataEventLive           = (QTRegisterDataEventLive)dll.resolve("RegisterDataEventLive");
+        RegisterPnpEventUVLO            = (QTRegisterPnpEventUVLO)dll.resolve("RegisterPnpEventUVLO");
         GetCameraIsSuperSpeedFromID     = (QTGetCameraIsSuperSpeedFromID)dll.resolve("_GetCameraIsSuperSpeedFromID@4");
         GetCameraStatusFromID           = (QTGetCameraStatusFromID)dll.resolve("_GetCameraStatusFromID@4");
         ControlQHYCCDGuide              = (QTControlQHYCCDGuide)dll.resolve("_ControlQHYCCDGuide@12");
@@ -199,6 +200,7 @@ dllqhyccd::dllqhyccd()
     RegisterPnpEventOut             = (QTRegisterPnpEventOut)dll.resolve("RegisterPnpEventOut");
     RegisterDataEventSingle         = (QTRegisterDataEventSingle)dll.resolve("RegisterDataEventSingle");
     RegisterDataEventLive           = (QTRegisterDataEventLive)dll.resolve("RegisterDataEventLive");
+    RegisterPnpEventUVLO            = (QTRegisterPnpEventUVLO)dll.resolve("RegisterPnpEventUVLO");
     GetCameraIsSuperSpeedFromID     = (QTGetCameraIsSuperSpeedFromID)dll.resolve("GetCameraIsSuperSpeedFromID");
     GetCameraStatusFromID           = (QTGetCameraStatusFromID)dll.resolve("GetCameraStatusFromID");
     ControlQHYCCDGuide              = (QTControlQHYCCDGuide)dll.resolve("ControlQHYCCDGuide");

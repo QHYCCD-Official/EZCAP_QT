@@ -52,6 +52,7 @@ class LiveCapThread;
 class VideoShowThread;
 class ThreadTempControl;
 class ThreadProcessImage;
+class PixelMagnifierWidget;
 
 //-----------执行计划任务线程类-------
 class ExecutePlanTable : public QThread
@@ -343,6 +344,10 @@ protected:
     bool readRawGrayPixel(const QPoint &imagePos, int &gray);
     void updateHoverPixelStatus(const QPoint &labelPos, const cv::Mat &image);
     void clearHoverPixelStatus();
+    void updatePixelMagnifier(const QPoint &labelPos);//更新像素放大镜（悬停区域放大图+像素值+区域统计）
+    void hidePixelMagnifier();
+    QImage sampleMagnifierRegion(const QPoint &imagePos, int regionSize);//从显示内容采样 NxN 区域图
+    bool computeRegionStats(const QPoint &imagePos, const QImage &region, QString &pixelText, QStringList &statLines);//计算像素值与区域统计
 
 public:
     Ui::EZCAP *ui;
@@ -399,6 +404,7 @@ public:
     cv::Mat ImgHist;
     QPoint hoverLabelPos;
     bool hoverLabelPosValid;
+    PixelMagnifierWidget *pixelMagnifier;//像素放大镜浮动控件
 
     QImage *qImg_show;
     QImage *qImg_focus;

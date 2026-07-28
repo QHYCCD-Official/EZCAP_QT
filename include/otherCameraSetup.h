@@ -22,6 +22,12 @@ private slots:
     void on_comboBox_HeatingBoardLevel_activated(const QString &arg1);
     void on_pushButton_CAARotatorSet_clicked();
 
+    void on_comboBox_DPC_currentTextChanged(const QString &arg1);
+
+    void on_horizontalSlider_DPCValue_valueChanged(int value);
+
+    void on_spinBox_DPCValue_valueChanged(int arg1);
+
 private:
     Ui::OtherCameraSetup *ui;
 };

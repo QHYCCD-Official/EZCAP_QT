@@ -65,6 +65,7 @@ public:
     QAction *actOtherCameraSetup;
     QAction *actFitWindow;
     QAction *actFillWindow;
+    QAction *actPixelMagnifier;//像素放大镜开关（悬停显示区域放大图、像素值与统计信息）
     QAction *act0_25X;
     QAction *act0_5X;
     QAction *act0_75X;

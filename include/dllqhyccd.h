@@ -107,6 +107,7 @@ public:
     typedef void            (__stdcall *QTRegisterPnpEventOut)(void(*)(char*));
     typedef void            (__stdcall *QTRegisterDataEventSingle)(void(*)(char*,uint8_t *));
     typedef void            (__stdcall *QTRegisterDataEventLive)(void(*)(char*,uint8_t *));
+    typedef void            (__stdcall *QTRegisterPnpEventUVLO)(void(*)(char*, uint8_t));
     typedef uint8_t         (__stdcall *QTGetCameraIsSuperSpeedFromID)(char *);
     typedef uint8_t         (__stdcall *QTGetCameraStatusFromID)(char *);
     typedef uint32_t        (__stdcall *QTControlQHYCCDGuide)(qhyccd_handle *, uint32_t,uint16_t);
@@ -223,6 +224,7 @@ public:
     QTRegisterPnpEventOut             RegisterPnpEventOut             = NULL;
     QTRegisterDataEventSingle         RegisterDataEventSingle         = NULL;
     QTRegisterDataEventLive           RegisterDataEventLive           = NULL;
+    QTRegisterPnpEventUVLO            RegisterPnpEventUVLO            = NULL;
     QTGetCameraIsSuperSpeedFromID     GetCameraIsSuperSpeedFromID     = NULL;
     QTGetCameraStatusFromID           GetCameraStatusFromID           = NULL;
     QTControlQHYCCDGuide              ControlQHYCCDGuide              = NULL;

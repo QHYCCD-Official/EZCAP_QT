@@ -14,6 +14,7 @@
 #include "ezCap.h"
 #include "mcpIpcServer.h"
 #include "qhyccdstruct.h"
+#include "windowsTimerResolution.h"
 
 #if (QT_VERSION < QT_VERSION_CHECK(6, 0, 0))
 #include <QTextCodec>
@@ -145,6 +146,8 @@ int main(int argc, char *argv[])
 #endif
 
     // 统一应用程序样式（在可能弹出任何对话框之前设置）
+    WindowsTimerResolutionGuard processTimerResolution(1);
+
     QApplication::setStyle(QStyleFactory::create("Fusion"));
     // 设置应用样式表，确保 QMessageBox 与主界面风格一致
     QString qss;

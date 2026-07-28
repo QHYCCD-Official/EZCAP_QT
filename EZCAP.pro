@@ -26,6 +26,7 @@ SOURCES += src/main.cpp \
     src/ezCap.cpp \
     src/mcpIpcServer.cpp \
     src/mcpStdioClient.cpp \
+    src/pixelMagnifier.cpp \
     src/cameraChooser.cpp \
     src/frameToolCal.cpp \
     src/frameToolCapCal.cpp \
@@ -66,6 +67,7 @@ HEADERS  += \
     include/ezCap.h \
     include/mcpIpcServer.h \
     include/mcpStdioClient.h \
+    include/pixelMagnifier.h \
     include/borderLayout.h \
     include/cameraChooser.h \
     include/frameToolCal.h \
@@ -110,6 +112,7 @@ HEADERS  += \
     include/threadBurstCapture.h \
     include/toolCorrectCenter.h \
     include/toolTrigger.h \
+    include/windowsTimerResolution.h \
     include/otherCameraSetup.h
 
 FORMS    += \
@@ -153,9 +156,9 @@ unix:{
 }
 
 win32: {
-    contains(QT_ARCH, i386) {
-        QMAKE_PRE_LINK += del config.bat
+    DEPLOY_SCRIPT = $$PWD/script/deploy_qt_runtime.bat
 
+    contains(QT_ARCH, i386) {
         INCLUDEPATH += -I$$PWD/include
 
         #LIBS += -L../EZCAP_Qt/winlib/x86 -lqhyccd
@@ -163,19 +166,7 @@ win32: {
         LIBS += -L$$PWD/winlib/x64 -lopencv_core3416    -lopencv_highgui3416 -lopencv_imgcodecs3416
         LIBS += -L$$PWD/winlib/x64 -lopencv_imgproc3416 -lopencv_video3416   -lopencv_videoio3416
         LIBS += -L$$PWD/winlib/x86 -lcfitsio
-
-        QMAKE_POST_LINK += echo @ECHO OFF >> config.bat &
-        QMAKE_POST_LINK += echo SETLOCAL ENABLEDELAYEDEXPANSION >> config.bat &
-        CONFIG(debug, debug|release) {
-            QMAKE_POST_LINK += echo PATH=$$PWD/Depend/x86/*.dll >> config.bat &
-            QMAKE_POST_LINK += echo copy %%PATH:/=\%% .\debug >> config.bat &
-        }else{
-            QMAKE_POST_LINK += echo PATH=$$PWD/Depend/x86/*.dll >> config.bat &
-            QMAKE_POST_LINK += echo copy %%PATH:/=\%% .\release >> config.bat &
-        }
     } else {
-        QMAKE_PRE_LINK += del config.bat
-
         INCLUDEPATH += -I$$PWD/include
 
         #LIBS += -L../EZCAP_Qt/winlib/x64 -lqhyccd
@@ -183,66 +174,10 @@ win32: {
         LIBS += -L$$PWD/winlib/x64 -lopencv_imgproc3416 -lopencv_video3416   -lopencv_videoio3416
         LIBS += -L$$PWD/winlib/x64 -lcfitsio
 #        LIBS += -L"/usr/local/lib" -lusb-1.0
-
-        QMAKE_POST_LINK += echo @ECHO OFF >> config.bat &
-        QMAKE_POST_LINK += echo SETLOCAL ENABLEDELAYEDEXPANSION >> config.bat &
-        CONFIG(debug, debug|release) {
-            QMAKE_POST_LINK += echo PATH=$$PWD/Depend/x64/*.dll >> config.bat &
-            QMAKE_POST_LINK += echo copy %%PATH:/=\%% .\debug >> config.bat &
-        }else{
-            QMAKE_POST_LINK += echo PATH=$$PWD/Depend/x64/*.dll >> config.bat &
-            QMAKE_POST_LINK += echo copy %%PATH:/=\%% .\release >> config.bat &
-        }
     }
 
-    CONFIG(release, debug|release) {
-        QMAKE_POST_LINK += echo PATH=$$PWD/Depend/qhyccd.ini >> config.bat &
-        QMAKE_POST_LINK += echo copy %%PATH:/=\%% . >> config.bat &
-        QMAKE_POST_LINK += echo copy %%PATH:/=\%% .\release >> config.bat &
-
-        QMAKE_POST_LINK += echo mkdir .\release\platforms >> config.bat &
-        QMAKE_POST_LINK += echo PATH=$$[QT_HOST_DATA]/plugins/platforms/qminimal.dll >> config.bat &
-        QMAKE_POST_LINK += echo copy %%PATH:/=\%% .\release\platforms >> config.bat &
-        QMAKE_POST_LINK += echo PATH=$$[QT_HOST_DATA]/plugins/platforms/qoffscreen.dll >> config.bat &
-        QMAKE_POST_LINK += echo copy %%PATH:/=\%% .\release\platforms >> config.bat &
-        QMAKE_POST_LINK += echo PATH=$$[QT_HOST_DATA]/plugins/platforms/qwindows.dll >> config.bat &
-        QMAKE_POST_LINK += echo copy %%PATH:/=\%% .\release\platforms >> config.bat &
-
-        QMAKE_POST_LINK += echo PATH=$$[QT_HOST_DATA]/bin/Qt*Core.dll >> config.bat &
-        QMAKE_POST_LINK += echo copy %%PATH:/=\%% .\release >> config.bat &
-        QMAKE_POST_LINK += echo PATH=$$[QT_HOST_DATA]/bin/Qt*Gui.dll >> config.bat &
-        QMAKE_POST_LINK += echo copy %%PATH:/=\%% .\release >> config.bat &
-        QMAKE_POST_LINK += echo PATH=$$[QT_HOST_DATA]/bin/Qt*Widgets.dll >> config.bat &
-        QMAKE_POST_LINK += echo copy %%PATH:/=\%% .\release >> config.bat &
-        QMAKE_POST_LINK += echo PATH=$$[QT_HOST_DATA]/bin/Qt*Network.dll >> config.bat &
-        QMAKE_POST_LINK += echo copy %%PATH:/=\%% .\release >> config.bat &
-        QMAKE_POST_LINK += echo PATH=$$[QT_HOST_DATA]/bin/Qt*WebSockets.dll >> config.bat &
-        QMAKE_POST_LINK += echo copy %%PATH:/=\%% .\release >> config.bat &
-
-        QMAKE_POST_LINK += echo del .\release\Qt*3DCore.dll >> config.bat &
-        QMAKE_POST_LINK += echo del .\release\Qt*SvgWidgets.dll >> config.bat &
-        QMAKE_POST_LINK += echo del .\release\Qt*QuickWidgets.dll >> config.bat &
-        QMAKE_POST_LINK += echo del .\release\Qt*QmlNetwork.dll >> config.bat &
-        QMAKE_POST_LINK += echo del .\release\Qt*QmlCore.dll >> config.bat &
-        QMAKE_POST_LINK += echo del .\release\Qt*PdfWidgets.dll >> config.bat &
-        QMAKE_POST_LINK += echo del .\release\Qt*OpenGLWidgets.dll >> config.bat &
-        QMAKE_POST_LINK += echo del .\release\Qt*MultimediaWidgets.dll >> config.bat &
-
-        QMAKE_POST_LINK += echo PATH=$$[QT_HOST_DATA]/bin/libgcc*.dll >> config.bat &
-        QMAKE_POST_LINK += echo copy %%PATH:/=\%% .\release >> config.bat &
-        QMAKE_POST_LINK += echo PATH=$$[QT_HOST_DATA]/bin/libstdc*.dll >> config.bat &
-        QMAKE_POST_LINK += echo copy %%PATH:/=\%% .\release >> config.bat &
-        QMAKE_POST_LINK += echo PATH=$$[QT_HOST_DATA]/bin/libwinpthread-1.dll >> config.bat &
-        QMAKE_POST_LINK += echo copy %%PATH:/=\%% .\release >> config.bat &
-    }
-    else
-    {
-        QMAKE_POST_LINK += echo PATH=$$PWD/Depend/qhyccd.ini >> config.bat &
-        QMAKE_POST_LINK += echo copy %%PATH:/=\%% . >> config.bat &
-        QMAKE_POST_LINK += echo copy %%PATH:/=\%% .\debug >> config.bat &
-    }
-    QMAKE_POST_LINK += .\config.bat
-
+    CONFIG(release, debug|release):QMAKE_POST_LINK += cmd /c call \"$$DEPLOY_SCRIPT\" release
+    CONFIG(debug, debug|release):QMAKE_POST_LINK += cmd /c call \"$$DEPLOY_SCRIPT\" debug
 }
 
 release: {

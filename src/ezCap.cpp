@@ -43,6 +43,7 @@
 #include "ui_toolBurst.h"
 #include "toolTrigger.h"
 #include "ui_toolTrigger.h"
+#include "pixelMagnifier.h"
 #include "toolCorrectCenter.h"
 #include "ui_toolCorrectCenter.h"
 
@@ -363,7 +364,9 @@ void data_Event_Live_Func(char *id, uint8_t *imageData)
 {
     OutputDebug("EZCAP | %s | %s img +Live  [%s]", __FILE__, __FUNCTION__, id);
 }
-
+void pnp_Event_UVLO_Func(char *id, uint8_t status){
+    DBGOPT_INFO("id = %s status = %d", id, status);
+}
 #ifdef CALAB_YAU_PLANETARIUM
 QString getLocalIp()
 {
@@ -459,6 +462,9 @@ EZCAP::EZCAP(QWidget *parent) :
     scrollArea_ImgShow->setBackgroundRole(QPalette::Dark);
     scrollArea_ImgShow->setWidget(ui->label_ImgShow);
 
+    //像素放大镜浮动控件（浮于图像显示区之上，鼠标悬停时显示）
+    pixelMagnifier = new PixelMagnifierWidget(scrollArea_ImgShow->viewport());
+
     gridLayout_ImgShow_Total = new QGridLayout();
     gridLayout_ImgShow_Total->addWidget(scrollArea_ImgShow,              0, 0, 1, 1);
     gridLayout_ImgShow_Total->addWidget(ui->verticalScrollBar_ImgShow,   0, 1, 1, 1);
@@ -541,6 +547,11 @@ EZCAP::EZCAP(QWidget *parent) :
 
     connect(scrollArea_ImgShow->horizontalScrollBar(), SIGNAL(valueChanged(int)), this, SLOT(hScrollBarValueChanged(int)));
     connect(scrollArea_ImgShow->verticalScrollBar(),   SIGNAL(valueChanged(int)), this, SLOT(vScrollBarValueChanged(int)));
+
+    //像素放大镜开关：取消勾选时立即隐藏
+    connect(mainMenuBar->actPixelMagnifier, &QAction::toggled, this, [this](bool checked) {
+        if(!checked && pixelMagnifier) pixelMagnifier->hide();
+    });
 
     //顶部菜单栏
     connect(mainMenuBar->actOpenVideo,            SIGNAL(triggered()),     this, SLOT(openVideo()));
@@ -1170,6 +1181,7 @@ EZCAP::EZCAP(QWidget *parent) :
     libqhyccd->RegisterDataEventLive(data_Event_Live_Func);
     libqhyccd->RegisterPnpEvent(pnpEventExFunc);
     libqhyccd->RegisterTransferEventError(transferEventErrorFunc);
+    if(libqhyccd->RegisterPnpEventUVLO) libqhyccd->RegisterPnpEventUVLO(pnp_Event_UVLO_Func);
     updateWindowsTitle();
     ui->plainTextEdit_debug->hide();
 
@@ -1792,6 +1804,7 @@ EZCAP::~EZCAP()
     {
         delete scrollArea_ImgShow;
         scrollArea_ImgShow = NULL;
+        pixelMagnifier = NULL;//随 viewport 一起被释放
     }
     if(about_dialog)
     {
@@ -3002,7 +3015,10 @@ void EZCAP::displayLiveImage()
         statusLabel_imgSize->setText(str1);
 
         if(updateHoverLabelPosFromCursor())
+        {
             updateHoverPixelStatus(hoverLabelPos, ImgShow);
+            updatePixelMagnifier(hoverLabelPos);
+        }
     }
 
     ImgShow.release();
@@ -8019,7 +8035,10 @@ void EZCAP::displaySingleFrame(uint32_t imgw, uint32_t imgh, unsigned char *imgd
     if(qImg_show) ui->label_ImgShow->setPixmap(QPixmap::fromImage(*qImg_show));
 
     if(updateHoverLabelPosFromCursor())
+    {
         updateHoverPixelStatus(hoverLabelPos, ImgShow);
+        updatePixelMagnifier(hoverLabelPos);
+    }
 
     ImgShowTemp.release();
 }
@@ -8822,7 +8841,260 @@ void EZCAP::clearHoverPixelStatus()
     hoverLabelPosValid = false;
     statusLabel_mousePos->setText("");
     statusLabel_rgb->setText("");
+    hidePixelMagnifier();
 }
+
+/**
+ * @brief EZCAP::hidePixelMagnifier 隐藏像素放大镜
+ */
+void EZCAP::hidePixelMagnifier()
+{
+    if(pixelMagnifier && pixelMagnifier->isVisible())
+        pixelMagnifier->hide();
+}
+
+/**
+ * @brief EZCAP::updatePixelMagnifier
+ * 鼠标悬停时更新像素放大镜：显示光标周围 NxN 区域的放大图、
+ * 光标所在像素的数值以及区域统计信息（Min/Max/Mean/StdDev）。
+ * @param labelPos 光标在 label_ImgShow 中的坐标
+ */
+void EZCAP::updatePixelMagnifier(const QPoint &labelPos)
+{
+    if(pixelMagnifier == NULL)
+        return;
+
+    //功能开关（Zoom 菜单中的 Pixel Magnifier）
+    if(mainMenuBar->actPixelMagnifier == NULL || !mainMenuBar->actPixelMagnifier->isChecked())
+    {
+        hidePixelMagnifier();
+        return;
+    }
+
+#if (QT_VERSION >= QT_VERSION_CHECK(6, 0, 0))
+    if(ui->label_ImgShow->pixmap().isNull() || ix.FrameW_Last == 0 || ix.FrameH_Last == 0)
+#else
+    if(ui->label_ImgShow->pixmap() == NULL || ix.FrameW_Last == 0 || ix.FrameH_Last == 0)
+#endif
+    {
+        hidePixelMagnifier();
+        return;
+    }
+
+    QPoint imagePos;
+    QPoint matPos;
+    cv::Mat emptyImage;
+    if(!mapHoverPointToImage(labelPos, emptyImage, imagePos, matPos))
+    {
+        hidePixelMagnifier();
+        return;
+    }
+
+    const int regionSize = 15;//统计区域边长（奇数，中心为光标像素）
+
+    QImage region = sampleMagnifierRegion(imagePos, regionSize);
+
+    QString pixelText;
+    QStringList statLines;
+    computeRegionStats(imagePos, region, pixelText, statLines);
+
+    pixelMagnifier->setContent(region, pixelText, statLines);
+    QPoint viewportPos = ui->label_ImgShow->mapTo(scrollArea_ImgShow->viewport(), labelPos);
+    pixelMagnifier->placeNear(viewportPos, scrollArea_ImgShow->viewport()->size());
+    if(!pixelMagnifier->isVisible())
+        pixelMagnifier->show();
+    pixelMagnifier->raise();
+}
+
+/**
+ * @brief EZCAP::sampleMagnifierRegion
+ * 从 label_ImgShow 当前显示内容中，按图像像素逐一采样，生成以 imagePos 为中心的
+ * NxN 区域图（所见即所得：包含拉伸、伪彩等显示效果；图像范围外的像素填黑）。
+ * @param imagePos   光标所在的图像像素坐标
+ * @param regionSize 区域边长（奇数）
+ * @return NxN 的 QImage
+ */
+QImage EZCAP::sampleMagnifierRegion(const QPoint &imagePos, int regionSize)
+{
+    QImage region(regionSize, regionSize, QImage::Format_RGB32);
+    region.fill(QColor(0, 0, 0));
+
+#if (QT_VERSION >= QT_VERSION_CHECK(6, 0, 0))
+    const QPixmap pm = ui->label_ImgShow->pixmap();
+    if(pm.isNull() || ix.FrameW_Last == 0 || ix.FrameH_Last == 0)
+        return region;
+
+    QImage shown = pm.toImage();
+#else
+    const QPixmap *pm = ui->label_ImgShow->pixmap();
+    if(pm == NULL || pm->isNull() || ix.FrameW_Last == 0 || ix.FrameH_Last == 0)
+        return region;
+
+    QImage shown = pm->toImage();
+#endif
+    int labelW = ui->label_ImgShow->width();
+    int labelH = ui->label_ImgShow->height();
+    if(shown.isNull() || labelW <= 0 || labelH <= 0)
+        return region;
+
+    //图像像素 -> label 像素 的映射（与 mapHoverPointToImage 互逆）
+    double zx = 1.0, zy = 1.0, ox = 0.0, oy = 0.0;
+    if(ix.zoomMode == Zoom_FitWindow)
+    {
+        zx = zy = qMin((double)labelW / (double)ix.FrameW_Last, (double)labelH / (double)ix.FrameH_Last);
+    }
+    else if(ix.zoomMode == Zoom_FillWindow)
+    {
+        zx = (double)labelW / (double)ix.FrameW_Last;
+        zy = (double)labelH / (double)ix.FrameH_Last;
+    }
+    else
+    {
+        zx = zy = ix.scaleFactor;
+        if(ix.camStreamMode == 1)
+        {
+            ox = -(double)ix.showLabelX;
+            oy = -(double)ix.showLabelY;
+        }
+    }
+    if(zx <= 0.0 || zy <= 0.0)
+        return region;
+
+    //pixmap 实际分辨率与 label 尺寸的比例（scaledContents 拉伸时进行归一化）
+    const double rx = (double)shown.width()  / (double)labelW;
+    const double ry = (double)shown.height() / (double)labelH;
+    const int half = regionSize / 2;
+
+    for(int j = 0; j < regionSize; ++j)
+    {
+        for(int i = 0; i < regionSize; ++i)
+        {
+            int px = imagePos.x() + i - half;
+            int py = imagePos.y() + j - half;
+            if(px < 0 || py < 0 || px >= (int)ix.FrameW_Last || py >= (int)ix.FrameH_Last)
+                continue;//图像范围外保持黑色
+
+            int lx = (int)((px + 0.5) * zx + ox);
+            int ly = (int)((py + 0.5) * zy + oy);
+            int sx = qBound(0, (int)(lx * rx), shown.width()  - 1);
+            int sy = qBound(0, (int)(ly * ry), shown.height() - 1);
+            region.setPixel(i, j, shown.pixel(sx, sy));
+        }
+    }
+
+    return region;
+}
+
+/**
+ * @brief EZCAP::computeRegionStats
+ * 计算光标像素值与 NxN 区域统计信息。
+ * 单色模式优先使用原始图像数据（8/16bit 精确值）；
+ * 彩色模式或无原始数据时使用显示亮度（8bit）。
+ * @param imagePos   光标所在的图像像素坐标
+ * @param region     sampleMagnifierRegion 生成的 NxN 区域图
+ * @param pixelText  输出：光标像素信息文本
+ * @param statLines  输出：统计信息文本行（Min/Max/Mean/Std）
+ * @return 是否成功计算
+ */
+bool EZCAP::computeRegionStats(const QPoint &imagePos, const QImage &region, QString &pixelText, QStringList &statLines)
+{
+    statLines.clear();
+
+    const int n    = region.width();
+    const int half = n / 2;
+
+    bool colorActive = ix.Color_Fun && (ix.Color || ix.IsCvtColor);
+    bool rawOk = !colorActive && ix.ImgData_Last != NULL &&
+                 (ix.FrameB_Last == 8 || ix.FrameB_Last == 16) &&
+                 ix.FrameC_Last == 1 &&
+                 ix.FrameW_Last > 0 && ix.FrameH_Last > 0;
+
+    double minV = 1e30, maxV = -1e30, sum = 0.0, sum2 = 0.0;
+    int count = 0;
+
+    if(rawOk)
+    {
+        const unsigned char *data = ix.ImgData_Last;
+        const uint32_t w   = ix.FrameW_Last;
+        const uint32_t h   = ix.FrameH_Last;
+        const int      bpc = ix.FrameB_Last / 8;
+
+        //光标所在像素的原始值
+        size_t pidx = ((size_t)imagePos.y() * w + imagePos.x()) * bpc;
+        unsigned int pv = (bpc == 2) ? (unsigned int)(data[pidx] | (data[pidx + 1] << 8))
+                                     : (unsigned int)data[pidx];
+        pixelText = "(" + QString::number(imagePos.x()) + "," + QString::number(imagePos.y()) + ")  " +
+                    QString::number(pv);
+
+        //区域统计（边界处裁剪）
+        int x0 = qBound(0, imagePos.x() - half, (int)w - 1);
+        int y0 = qBound(0, imagePos.y() - half, (int)h - 1);
+        int x1 = qBound(0, imagePos.x() + half, (int)w - 1);
+        int y1 = qBound(0, imagePos.y() + half, (int)h - 1);
+
+        for(int yy = y0; yy <= y1; ++yy)
+        {
+            const unsigned char *row = data + (size_t)yy * w * bpc;
+            for(int xx = x0; xx <= x1; ++xx)
+            {
+                size_t i = (size_t)xx * bpc;
+                double v = (bpc == 2) ? (double)(row[i] | (row[i + 1] << 8))
+                                      : (double)row[i];
+                if(v < minV) minV = v;
+                if(v > maxV) maxV = v;
+                sum  += v;
+                sum2 += v * v;
+                ++count;
+            }
+        }
+    }
+    else
+    {
+        //光标像素显示颜色（彩色模式）
+        QRgb center = region.pixel(half, half);
+        pixelText = "(" + QString::number(imagePos.x()) + "," + QString::number(imagePos.y()) + ")  " +
+                    "R:" + QString::number(qRed(center)) +
+                    " G:" + QString::number(qGreen(center)) +
+                    " B:" + QString::number(qBlue(center));
+
+        //基于显示亮度的区域统计
+        for(int j = 0; j < n; ++j)
+        {
+            for(int i = 0; i < n; ++i)
+            {
+                int px = imagePos.x() + i - half;
+                int py = imagePos.y() + j - half;
+                if(px < 0 || py < 0 || px >= (int)ix.FrameW_Last || py >= (int)ix.FrameH_Last)
+                    continue;
+
+                QRgb c = region.pixel(i, j);
+                double v = (qRed(c) + qGreen(c) + qBlue(c)) / 3.0;
+                if(v < minV) minV = v;
+                if(v > maxV) maxV = v;
+                sum  += v;
+                sum2 += v * v;
+                ++count;
+            }
+        }
+    }
+
+    if(count <= 0)
+        return false;
+
+    double mean = sum / count;
+    double var  = sum2 / count - mean * mean;
+    if(var < 0.0) var = 0.0;
+    double stddev = qSqrt(var);
+
+    int precision = rawOk ? 0 : 1;
+    statLines << (tr("Min: ") + QString::number(minV, 'f', precision) +
+                  "   " + tr("Max: ") + QString::number(maxV, 'f', precision));
+    statLines << (tr("Mean: ") + QString::number(mean, 'f', 1) +
+                  "   " + tr("Std: ") + QString::number(stddev, 'f', 2));
+
+    return true;
+}
+
 
 /**
  * @brief EZCAP::eventFilter
@@ -8970,6 +9242,9 @@ bool EZCAP::eventFilter(QObject *target, QEvent *event)
                     // Status is already updated by updateHoverPixelStatus().
                 }
                 }
+
+                //更新像素放大镜（区域放大图、光标像素值、区域统计信息）
+                updatePixelMagnifier(hoverLabelPos);
             }
         }
         //鼠标点击label_ImgShow区域

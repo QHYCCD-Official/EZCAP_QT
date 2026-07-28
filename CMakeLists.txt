@@ -61,6 +61,7 @@ set(SOURCES
     src/threadTempControl.cpp
     src/msgclient.cpp
     src/mcpIpcServer.cpp
+    src/pixelMagnifier.cpp
     src/toolBurst.cpp
     src/threadBurstCapture.cpp
     )

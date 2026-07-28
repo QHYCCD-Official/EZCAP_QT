@@ -1,5 +1,6 @@
 #include "liveCapThread.h"
 #include "dllqhyccd.h"
+#include "windowsTimerResolution.h"
 #include <QDateTime>
 #include <cstdio>
 #include <QDebug>
@@ -22,6 +23,7 @@ LiveCapThread::LiveCapThread(QObject *parent) :
 
 void LiveCapThread::run()
 {
+    WindowsTimerResolutionGuard liveTimerResolution(1);
     uint32_t ret = QHYCCD_ERROR;
 
     quit = false;

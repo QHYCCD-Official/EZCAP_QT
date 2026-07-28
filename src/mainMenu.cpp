@@ -271,6 +271,11 @@ MainMenu::~MainMenu()
         delete act2X;
         act2X = NULL;
     }
+    if(actPixelMagnifier)
+    {
+        delete actPixelMagnifier;
+        actPixelMagnifier = NULL;
+    }
 
     if(actEnglish)
     {
@@ -465,6 +470,10 @@ void MainMenu::createActions()
     act2X = new QAction("2X", this);
     act2X->setCheckable(true);
 
+    actPixelMagnifier = new QAction(tr("Pixel Magnifier"), this);
+    actPixelMagnifier->setCheckable(true);
+    actPixelMagnifier->setChecked(true);
+
     actEnglish = new QAction(tr("English"), this);
     actEnglish->setCheckable(true);
     actChinese = new QAction(QString::fromUtf8("简体中文"), this);
@@ -581,6 +590,8 @@ void MainMenu::createMenus()
     menuZoom->addAction(act0_25X);
     menuZoom->addAction(act1_5X);
     menuZoom->addAction(act2X);
+    menuZoom->addSeparator();
+    menuZoom->addAction(actPixelMagnifier);
     /*language菜单*/
     menuLanguage = new QMenu(tr("Language"));
     menuLanguage->addAction(actEnglish);
