@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.16)
-project(QCAP)
+project(EZCAP_QT)
 if (WIN32)
   set(CMAKE_PREFIX_PATH "C:/Qt/Qt5.13.0/5.13.0/mingw73_64/lib/cmake/Qt5")    
 endif (WIN32)
