@@ -51,8 +51,27 @@ private slots:
 
     void on_pBtnLowLevelD5_clicked();
 
+    void on_TsButtonWriteFPGA_clicked();
+
+    void on_TsButtonReadFPGA_clicked();
+
+    void on_TsButtonWriteFPGA2_clicked();
+
+    void on_TsButtonReadFPGA2_clicked();
+
+    void on_TsButtonWriteExpandFPGA_clicked();
+
+    void on_TsButtonReadExpandFPGA_clicked();
+
 private:
     Ui::TechnicalSupport *ui;
+    bool checkCameraHandle();
+    void writeFPGA(uint16_t index, uint16_t value);
+    uint8_t readFPGA(uint16_t index);
+    void writeFPGA2(uint16_t index, uint16_t value);
+    uint8_t readFPGA2(uint16_t index);
+    void writeFPGAExtend(uint16_t index, uint32_t value);
+    uint32_t readFPGAExtend(uint16_t index);
 #if defined (WIN32)
 #else
     void print_devs(libusb_device **devs);

@@ -102,6 +102,7 @@ public:
     ~EZCAP();
 
     bool triggerRetransferAndReceiveFrame();
+    bool triggerDdrRetransferAndReceiveFrame();
     void resetFrameCount();
 
     QString EZCAP_VER;

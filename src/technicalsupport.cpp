@@ -3,6 +3,7 @@
 
 
 #include "include/dllqhyccd.h"
+#include "include/fpgaAccess.h"
 #include "ezCap.h"
 #include <QDebug>
 #include <QByteArray>
@@ -430,4 +431,183 @@ void TechnicalSupport::on_pBtnLowLevelD5_clicked()
             info += "\n";
     }
     ui->textEdit->append(info);
+}
+
+bool TechnicalSupport::checkCameraHandle()
+{
+    if(camhandle == NULL)
+    {
+        ui->textEdit->append("Camera not connected.");
+        return false;
+    }
+    return true;
+}
+
+void TechnicalSupport::writeFPGA(uint16_t index, uint16_t value)
+{
+    qhyWriteFPGA(camhandle, index, value);
+}
+
+uint8_t TechnicalSupport::readFPGA(uint16_t index)
+{
+    return qhyReadFPGA(camhandle, index);
+}
+
+void TechnicalSupport::writeFPGA2(uint16_t index, uint16_t value)
+{
+    if(libqhyccd->SetQHYCCDWriteFPGA != NULL)
+    {
+        libqhyccd->SetQHYCCDWriteFPGA(camhandle, 1, index, (uint8_t)value);
+        return;
+    }
+
+    uint8_t data[10] = { 0 };
+    libqhyccd->QHYCCDVendRequestWrite(camhandle, 0xbd, value, index, 1, data);
+}
+
+uint8_t TechnicalSupport::readFPGA2(uint16_t index)
+{
+    uint8_t data[10] = { 0 };
+    libqhyccd->QHYCCDVendRequestRead(camhandle, 0xbe, 0, index, 1, data);
+    return data[0];
+}
+
+void TechnicalSupport::writeFPGAExtend(uint16_t index, uint32_t value)
+{
+    qhyWriteFPGAExtend(camhandle, index, value);
+}
+
+uint32_t TechnicalSupport::readFPGAExtend(uint16_t index)
+{
+    return qhyReadFPGAExtend(camhandle, index);
+}
+
+void TechnicalSupport::on_TsButtonWriteFPGA_clicked()
+{
+    if(!checkCameraHandle())
+        return;
+
+    bool ok = false;
+    uint16_t index = ui->TsLineEditWriteFPGA_Address->text().toUShort(&ok, 10);
+    if(!ok)
+    {
+        ui->textEdit->append("Invalid FPGA address.");
+        return;
+    }
+
+    uint16_t value = ui->TsLineEditWriteFPGA_Data->text().toUShort(&ok, 16);
+    if(!ok)
+    {
+        ui->textEdit->append("Invalid FPGA data.");
+        return;
+    }
+
+    writeFPGA(index, value);
+    ui->textEdit->append(QString("WriteFPGA %1 = 0x%2").arg(index).arg(value, 2, 16, QChar('0')));
+}
+
+void TechnicalSupport::on_TsButtonReadFPGA_clicked()
+{
+    if(!checkCameraHandle())
+        return;
+
+    bool ok = false;
+    uint16_t index = ui->TsLineEditReadFPGA_Address->text().toUShort(&ok, 10);
+    if(!ok)
+    {
+        ui->textEdit->append("Invalid FPGA address.");
+        return;
+    }
+
+    uint8_t value = readFPGA(index);
+    ui->TsLineReadFPGA_Data->setText(QString::number(value, 16).rightJustified(2, '0'));
+    ui->textEdit->append(QString("ReadFPGA %1 = 0x%2").arg(index).arg(value, 2, 16, QChar('0')));
+}
+
+void TechnicalSupport::on_TsButtonWriteFPGA2_clicked()
+{
+    if(!checkCameraHandle())
+        return;
+
+    bool ok = false;
+    uint16_t index = ui->TsLineEditWriteFPGA2_Address->text().toUShort(&ok, 10);
+    if(!ok)
+    {
+        ui->textEdit->append("Invalid FPGA2 address.");
+        return;
+    }
+
+    uint16_t value = ui->TsLineEditWriteFPGA2_Data->text().toUShort(&ok, 16);
+    if(!ok)
+    {
+        ui->textEdit->append("Invalid FPGA2 data.");
+        return;
+    }
+
+    writeFPGA2(index, value);
+    ui->textEdit->append(QString("WriteFPGA2 %1 = 0x%2").arg(index).arg(value, 2, 16, QChar('0')));
+}
+
+void TechnicalSupport::on_TsButtonReadFPGA2_clicked()
+{
+    if(!checkCameraHandle())
+        return;
+
+    bool ok = false;
+    uint16_t index = ui->TsLineEditReadFPGA2_Address->text().toUShort(&ok, 10);
+    if(!ok)
+    {
+        ui->textEdit->append("Invalid FPGA2 address.");
+        return;
+    }
+
+    uint8_t value = readFPGA2(index);
+    ui->TsLineEditReadFPGA2_Data->setText(QString::number(value, 16).rightJustified(2, '0'));
+    ui->textEdit->append(QString("ReadFPGA2 %1 = 0x%2").arg(index).arg(value, 2, 16, QChar('0')));
+}
+
+void TechnicalSupport::on_TsButtonWriteExpandFPGA_clicked()
+{
+    if(!checkCameraHandle())
+        return;
+
+    bool ok = false;
+    uint16_t index = ui->TsLineEditWriteExpandFPGA_Address->text().toUShort(&ok, 10);
+    if(!ok)
+    {
+        ui->textEdit->append("Invalid expand register address.");
+        return;
+    }
+
+    uint32_t value = ui->TsLineEditWriteExpandFPGA_Data->text().toUInt(&ok, 16);
+    if(!ok)
+    {
+        ui->textEdit->append("Invalid expand register data.");
+        return;
+    }
+
+    writeFPGAExtend(index, value);
+    ui->textEdit->append(QString("WriteExpand %1 = 0x%2")
+                             .arg(index)
+                             .arg(value, 8, 16, QChar('0')));
+}
+
+void TechnicalSupport::on_TsButtonReadExpandFPGA_clicked()
+{
+    if(!checkCameraHandle())
+        return;
+
+    bool ok = false;
+    uint16_t index = ui->TsLineEditWriteExpandFPGA_Address->text().toUShort(&ok, 10);
+    if(!ok)
+    {
+        ui->textEdit->append("Invalid expand register address.");
+        return;
+    }
+
+    uint32_t value = readFPGAExtend(index);
+    ui->TsLineEditReadExpandFPGA_Data->setText(QString::number(value, 16).rightJustified(8, '0').toUpper());
+    ui->textEdit->append(QString("ReadExpand %1 = 0x%2")
+                             .arg(index)
+                             .arg(value, 8, 16, QChar('0')));
 }

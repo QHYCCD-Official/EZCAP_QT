@@ -22,6 +22,7 @@ TEMPLATE = app
 
 SOURCES += src/main.cpp \
     src/dllqhyccd.cpp \
+    src/fpgaAccess.cpp \
     src/borderLayout.cpp \
     src/ezCap.cpp \
     src/mcpIpcServer.cpp \
@@ -64,6 +65,7 @@ SOURCES += src/main.cpp \
 
 HEADERS  += \
     include/dllqhyccd.h \
+    include/fpgaAccess.h \
     include/ezCap.h \
     include/mcpIpcServer.h \
     include/mcpStdioClient.h \

@@ -1,6 +1,5 @@
 #include "ezCap.h"
 #include "ui_ezCap.h"
-#include "include/fpgaAccess.h"
 #include "mainMenu.h"
 #include "borderLayout.h"
 #include "planner.h"
@@ -1182,7 +1181,7 @@ EZCAP::EZCAP(QWidget *parent) :
     libqhyccd->RegisterDataEventLive(data_Event_Live_Func);
     libqhyccd->RegisterPnpEvent(pnpEventExFunc);
     libqhyccd->RegisterTransferEventError(transferEventErrorFunc);
-    if(libqhyccd->RegisterPnpEventUVLO) libqhyccd->RegisterPnpEventUVLO(pnp_Event_UVLO_Func);
+    libqhyccd->RegisterPnpEventUVLO(pnp_Event_UVLO_Func);
     updateWindowsTitle();
     ui->plainTextEdit_debug->hide();
 
@@ -4431,93 +4430,6 @@ void EZCAP::showCameraChooser()
                 // 发送相机连接信号
                 emit connect_camera();
 
-                {
-                    QString path_ezcap = QDir::toNativeSeparators(QCoreApplication::applicationDirPath() + "/EZCAP.ini");
-                    QSettings iniRead(path_ezcap, QSettings::IniFormat);
-                    iniRead.beginGroup("RetransferFormat");
-                    const bool savedValid = iniRead.value("Valid", false).toBool();
-                    const QString savedCamID = iniRead.value("CamID", "").toString();
-                    const uint32_t savedReadMode = iniRead.value("ReadMode", ix.ReadMode).toUInt();
-                    const uint32_t savedBinX = iniRead.value("BinX", 0).toUInt();
-                    const uint32_t savedBinY = iniRead.value("BinY", 0).toUInt();
-                    const uint32_t savedRoiX = iniRead.value("RoiX", 0).toUInt();
-                    const uint32_t savedRoiY = iniRead.value("RoiY", 0).toUInt();
-                    const uint32_t savedRoiW = iniRead.value("RoiW", 0).toUInt();
-                    const uint32_t savedRoiH = iniRead.value("RoiH", 0).toUInt();
-                    iniRead.endGroup();
-
-                    const bool formatValid =
-                        savedValid &&
-                        (savedCamID.isEmpty() || savedCamID == ix.CamID) &&
-                        savedReadMode == ix.ReadMode &&
-                        savedBinX > 0 && savedBinY > 0 &&
-                        savedRoiW > 0 && savedRoiH > 0 &&
-                        savedRoiX < ix.ImageW_Max && savedRoiY < ix.ImageH_Max &&
-                        savedRoiW <= ix.ImageW_Max && savedRoiH <= ix.ImageH_Max &&
-                        savedRoiX + savedRoiW <= ix.ImageW_Max &&
-                        savedRoiY + savedRoiH <= ix.ImageH_Max;
-
-                    if(formatValid)
-                    {
-                        bool restoreOk = true;
-                        if(libqhyccd->SetQHYCCDBinMode)
-                        {
-                            uint32_t formatRet = libqhyccd->SetQHYCCDBinMode(camhandle, savedBinX, savedBinY);
-                            if(formatRet == QHYCCD_SUCCESS)
-                            {
-                                ix.BinX = savedBinX;
-                                ix.BinY = savedBinY;
-                                ix.BinX_Last = savedBinX;
-                                ix.BinY_Last = savedBinY;
-                            }
-                            else
-                            {
-                                restoreOk = false;
-                                DBGOPT_WARNING("Retransfer post-connect restore SetQHYCCDBinMode(%u,%u) failed ret=%u",
-                                               savedBinX, savedBinY, formatRet);
-                            }
-                        }
-
-                        if(restoreOk && libqhyccd->SetQHYCCDResolution)
-                        {
-                            uint32_t formatRet = libqhyccd->SetQHYCCDResolution(camhandle, savedRoiX, savedRoiY, savedRoiW, savedRoiH);
-                            if(formatRet == QHYCCD_SUCCESS)
-                            {
-                                ix.RoiX = savedRoiX;
-                                ix.RoiY = savedRoiY;
-                                ix.RoiW = savedRoiW;
-                                ix.RoiH = savedRoiH;
-                                ix.RoiX_Last = savedRoiX;
-                                ix.RoiY_Last = savedRoiY;
-                                ix.RoiW_Last = savedRoiW;
-                                ix.RoiH_Last = savedRoiH;
-                            }
-                            else
-                            {
-                                restoreOk = false;
-                                DBGOPT_WARNING("Retransfer post-connect restore SetQHYCCDResolution(%u,%u,%u,%u) failed ret=%u",
-                                               savedRoiX, savedRoiY, savedRoiW, savedRoiH, formatRet);
-                            }
-                        }
-
-                        DBGOPT_INFO("Retransfer post-connect restore format cam=%s readmode=%u bin=%ux%u roi=%u,%u,%u,%u ok=%d",
-                                    qPrintable(savedCamID), savedReadMode, savedBinX, savedBinY,
-                                    savedRoiX, savedRoiY, savedRoiW, savedRoiH, restoreOk);
-                        if(restoreOk)
-                        {
-                            libqhyccd->CancelQHYCCDExposingAndReadout(camhandle);
-                            QThread::msleep(300);
-                        }
-                    }
-                    else
-                    {
-                        DBGOPT_INFO("Retransfer post-connect restore skipped cam=%s savedCam=%s valid=%d readmode=%u/%u bin=%ux%u roi=%u,%u,%u,%u",
-                                    qPrintable(ix.CamID), qPrintable(savedCamID), savedValid,
-                                    ix.ReadMode, savedReadMode, savedBinX, savedBinY,
-                                    savedRoiX, savedRoiY, savedRoiW, savedRoiH);
-                    }
-                }
-
                 if(ix.camStreamMode == 1)
                 {
                     ix.showLabelW = ui->label_ImgShow->width();
@@ -7527,12 +7439,16 @@ void EZCAP::mgrMenu_pBtn_stop_clicked()
  */
 void EZCAP::mgrMenu_pBtn_capture_clicked()
 {
-    qhyWriteFPGAExtend(camhandle, 704, 1);
     unsigned int ret = QHYCCD_ERROR;
 
     QElapsedTimer sTime;
     int betweenTime;
 
+    // 如果当前相机还处在曝光/下载/重传接收等非空闲状态，不能再开启新的 Capture。
+    // 特别是重传超时场景下，主界面虽然已经返回，但后台 DownloadCapThread 可能仍阻塞在
+    // GetQHYCCDSingleFrame() 中等待 SDK 返回。此时再次点击 Capture 会再创建一个读图线程，
+    // 两个线程同时访问同一个 camhandle/USB 读图接口，容易导致 SDK 卡死。
+    // 因此这里把 Capture 按钮状态恢复，并等待前一个流程真正结束后再允许下一次拍摄。
     if(ix.cameraState != Camera_Idle)
     {
         managerMenu->ui->pBtn_capture->setChecked(false);
@@ -7541,6 +7457,8 @@ void EZCAP::mgrMenu_pBtn_capture_clicked()
     }
 
     managerMenu->ui->pBtn_capture->setChecked(true);
+    managerMenu->ui->head_focus->setCheckable(false);//禁用focus tab
+    managerMenu->ui->head_preview->setCheckable(false);//禁用preview tab
 
     memset(ix.ImgData,          0, ix.ImageW_Max * ix.ImageH_Max * 2);
 
@@ -7671,7 +7589,6 @@ void EZCAP::mgrMenu_pBtn_capture_clicked()
         ix.cameraState = Camera_Exposing;
         sTime.start();
         ix.GPS_LocalTime = QDateTime::currentDateTime().toString("yyyy-MM-dd_hh-mm-ss-zzz");
-        
         ret = libqhyccd->ExpQHYCCDSingleFrame(camhandle);
         if(ret == QHYCCD_ERROR)
         {
@@ -7765,53 +7682,7 @@ void EZCAP::mgrMenu_pBtn_capture_clicked()
 
         if(ix.imageReady == GetSingleFrame_Success)
         {
-emit change_fitHeaderInfo();  //图像拍摄成功，刷新FitHeader信息
-            uint32_t retransferBlocks = qhyReadFPGAExtend(camhandle, 702);
-            uint32_t rawFrameW = (ix.ImageW_Min > 0) ? ix.ImageW_Min :
-                                 ((ix.RoiW_Last > 0 && ix.BinX_Last > 0) ? ix.RoiW_Last * ix.BinX_Last : ix.FrameW_Last);
-            uint32_t rawFrameH = (ix.RoiH_Last > 0 && ix.BinY_Last > 0) ? ix.RoiH_Last * ix.BinY_Last : ix.FrameH_Last;
-            if(ix.ImageH_Min > 0 && rawFrameH > ix.ImageH_Min)
-            {
-                rawFrameH = ix.ImageH_Min;
-            }
-            if(retransferBlocks == 0 && rawFrameW > 0 && rawFrameH > 0 && ix.FrameB_Last > 0 && ix.FrameC_Last > 0)
-            {
-                const uint32_t replayExtraRows = 34;
-                const uint32_t replayExtraBlocks = 1190;
-                const uint32_t replayCalcH = rawFrameH + replayExtraRows;
-                const quint64 imageBytes = (quint64)rawFrameW * replayCalcH * ix.FrameB_Last * ix.FrameC_Last / 8;
-                retransferBlocks = (uint32_t)((imageBytes + 511) / 512 + replayExtraBlocks);
-                DBGOPT_WARNING("Retransfer FPGA[702] returned 0, fallback blocks=%u raw=%ux%u calc=%ux%u display=%ux%u imageBytes=%llu",
-                               retransferBlocks, rawFrameW, rawFrameH, rawFrameW, replayCalcH,
-                               ix.FrameW_Last, ix.FrameH_Last, imageBytes);
-            }
-            QString path_ezcap = QDir::toNativeSeparators(QCoreApplication::applicationDirPath() + "/EZCAP.ini");
-            QSettings iniWrite(path_ezcap, QSettings::IniFormat);
-            iniWrite.beginGroup("RetransferFormat");
-            iniWrite.setValue("Valid", true);
-            iniWrite.setValue("CamID", ix.CamID);
-            iniWrite.setValue("ReadMode", ix.ReadMode);
-            iniWrite.setValue("BinX", ix.BinX_Last);
-            iniWrite.setValue("BinY", ix.BinY_Last);
-            iniWrite.setValue("RoiX", ix.RoiX_Last);
-            iniWrite.setValue("RoiY", ix.RoiY_Last);
-            iniWrite.setValue("RoiW", ix.RoiW_Last);
-            iniWrite.setValue("RoiH", ix.RoiH_Last);
-            iniWrite.setValue("FrameW", ix.FrameW_Last);
-            iniWrite.setValue("FrameH", ix.FrameH_Last);
-            iniWrite.setValue("RawFrameW", rawFrameW);
-            iniWrite.setValue("RawFrameH", rawFrameH);
-            iniWrite.setValue("FrameB", ix.FrameB_Last);
-            iniWrite.setValue("FrameC", ix.FrameC_Last);
-            iniWrite.setValue("ReplayBlocks", retransferBlocks);
-            iniWrite.endGroup();
-            iniWrite.sync();
-            DBGOPT_INFO("Retransfer save format cam=%s readmode=%u bin=%ux%u roi=%u,%u,%u,%u raw=%ux%u frame=%ux%u b=%u c=%u blocks=%u",
-                        qPrintable(ix.CamID), ix.ReadMode, ix.BinX_Last, ix.BinY_Last,
-                        ix.RoiX_Last, ix.RoiY_Last, ix.RoiW_Last, ix.RoiH_Last,
-                        rawFrameW, rawFrameH, ix.FrameW_Last, ix.FrameH_Last, ix.FrameB_Last, ix.FrameC_Last, retransferBlocks);
-
-            emit change_fitHeaderInfo();  //??????????????FitHeader???
+            emit change_fitHeaderInfo();  //图像拍摄成功，刷新FitHeader信息
 
             if(ix.workMode != ix.lastWorkMode)
             {
@@ -7890,196 +7761,30 @@ emit change_fitHeaderInfo();  //图像拍摄成功，刷新FitHeader信息
 
 bool EZCAP::triggerRetransferAndReceiveFrame()
 {
-    const bool emmcRetransferEnabled =
-        favorite_dialog &&
-        favorite_dialog->ui &&
-        favorite_dialog->ui->pushButton_uart_cmd_emmc_enable->isChecked();
-
-    if(!emmcRetransferEnabled)
-    {
-        DBGOPT_INFO("Retransfer use DDR path because eMMC button is disabled");
-        return triggerDdrRetransferAndReceiveFrame();
-    }
-
-    DBGOPT_INFO("Retransfer use eMMC path because eMMC button is enabled");
-
-    //
-    if(ix.camStreamMode == 1 || ix.cameraState != Camera_Idle){
-        QThread::msleep(100);
-        return true;
-    }
-
-    const uint32_t normalSingleFrameTimeoutMs = 60000;
-    bool singleFrameTimeoutChanged = false;
-
-    if(libqhyccd->SetQHYCCDSingleFrameTimeOut &&
-       libqhyccd->SetQHYCCDSingleFrameTimeOut(camhandle, 0) == QHYCCD_SUCCESS)
-    {
-        singleFrameTimeoutChanged = true;
-        DBGOPT_INFO("Retransfer SDK single-frame timeout disabled");
-    }
-    else
-    {
-        DBGOPT_WARNING("Retransfer SDK single-frame timeout disable failed");
-    }
-
-    uint32_t restoreBinX = 1;
-    uint32_t restoreBinY = 1;
-    uint32_t restoreRoiX = 0;
-    uint32_t restoreRoiY = 0;
-    uint32_t restoreRoiW = ix.ImageW_Max;
-    uint32_t restoreRoiH = ix.ImageH_Max;
-    bool restoreFormatFromIni = false;
-
-    QString path_ezcap = QDir::toNativeSeparators(QCoreApplication::applicationDirPath() + "/EZCAP.ini");
-    QSettings iniRead(path_ezcap, QSettings::IniFormat);
-    iniRead.beginGroup("RetransferFormat");
-    const bool savedValid = iniRead.value("Valid", false).toBool();
-    const QString savedCamID = iniRead.value("CamID", "").toString();
-    const uint32_t savedBinX = iniRead.value("BinX", 0).toUInt();
-    const uint32_t savedBinY = iniRead.value("BinY", 0).toUInt();
-    const uint32_t savedRoiX = iniRead.value("RoiX", 0).toUInt();
-    const uint32_t savedRoiY = iniRead.value("RoiY", 0).toUInt();
-    const uint32_t savedRoiW = iniRead.value("RoiW", 0).toUInt();
-    const uint32_t savedRoiH = iniRead.value("RoiH", 0).toUInt();
-    const uint32_t savedFrameW = iniRead.value("FrameW", 0).toUInt();
-    const uint32_t savedFrameH = iniRead.value("FrameH", 0).toUInt();
-    const uint32_t savedRawFrameW = iniRead.value("RawFrameW", 0).toUInt();
-    const uint32_t savedRawFrameH = iniRead.value("RawFrameH", 0).toUInt();
-    const uint32_t savedFrameB = iniRead.value("FrameB", 0).toUInt();
-    const uint32_t savedFrameC = iniRead.value("FrameC", 0).toUInt();
-    uint32_t savedReplayBlocks = iniRead.value("ReplayBlocks", 0).toUInt();
-    iniRead.endGroup();
-
-    uint32_t replayFrameW = (ix.ImageW_Min > 0) ? ix.ImageW_Min :
-                            ((savedRoiW > 0 && savedBinX > 0) ? savedRoiW * savedBinX :
-                            ((savedRawFrameW > 0) ? savedRawFrameW : savedFrameW));
-    uint32_t replayFrameH = (savedRoiH > 0 && savedBinY > 0) ? savedRoiH * savedBinY :
-                            ((savedRawFrameH > 0) ? savedRawFrameH : savedFrameH);
-    if(ix.ImageH_Min > 0 && replayFrameH > ix.ImageH_Min)
-    {
-        replayFrameH = ix.ImageH_Min;
-    }
-
-    if(replayFrameW > 0 && replayFrameH > 0 && savedFrameB > 0 && savedFrameC > 0)
-    {
-        const uint32_t replayExtraRows = 34;
-        const uint32_t replayExtraBlocks = 1190;
-        const uint32_t replayCalcH = replayFrameH + replayExtraRows;
-        const quint64 imageBytes = (quint64)replayFrameW * replayCalcH * savedFrameB * savedFrameC / 8;
-        const uint32_t rawImageBlocks = (uint32_t)((imageBytes + 511) / 512);
-        const uint32_t calculatedReplayBlocks = rawImageBlocks + replayExtraBlocks;
-        if(savedReplayBlocks == 0)
-        {
-            savedReplayBlocks = calculatedReplayBlocks;
-            DBGOPT_WARNING("Retransfer replay blocks missing, fallback blocks=%u raw=%ux%u calc=%ux%u display=%ux%u imageBytes=%llu",
-                           savedReplayBlocks, replayFrameW, replayFrameH, replayFrameW, replayCalcH,
-                           savedFrameW, savedFrameH, imageBytes);
-        }
-        else if(savedReplayBlocks != calculatedReplayBlocks)
-        {
-            DBGOPT_WARNING("Retransfer replay blocks update old=%u new=%u raw=%ux%u calc=%ux%u display=%ux%u",
-                           savedReplayBlocks, calculatedReplayBlocks, replayFrameW, replayFrameH,
-                           replayFrameW, replayCalcH, savedFrameW, savedFrameH);
-            savedReplayBlocks = calculatedReplayBlocks;
-        }
-    }
-
-    if(savedValid &&
-       (savedCamID.isEmpty() || savedCamID == ix.CamID) &&
-       savedBinX > 0 && savedBinY > 0 &&
-       savedRoiW > 0 && savedRoiH > 0 &&
-       savedRoiX < ix.ImageW_Max && savedRoiY < ix.ImageH_Max &&
-       savedRoiW <= ix.ImageW_Max && savedRoiH <= ix.ImageH_Max &&
-       savedRoiX + savedRoiW <= ix.ImageW_Max &&
-       savedRoiY + savedRoiH <= ix.ImageH_Max)
-    {
-        restoreBinX = savedBinX;
-        restoreBinY = savedBinY;
-        restoreRoiX = savedRoiX;
-        restoreRoiY = savedRoiY;
-        restoreRoiW = savedRoiW;
-        restoreRoiH = savedRoiH;
-        restoreFormatFromIni = true;
-        DBGOPT_INFO("Retransfer restore format from ini cam=%s bin=%ux%u roi=%u,%u,%u,%u raw=%ux%u frame=%ux%u blocks=%u",
-                    qPrintable(savedCamID), restoreBinX, restoreBinY,
-                    restoreRoiX, restoreRoiY, restoreRoiW, restoreRoiH,
-                    replayFrameW, replayFrameH, savedFrameW, savedFrameH, savedReplayBlocks);
-    }
-    else
-    {
-        DBGOPT_WARNING("Retransfer restore format ini invalid, use default full 1x1 cam=%s savedCam=%s valid=%d bin=%ux%u roi=%u,%u,%u,%u",
-                       qPrintable(ix.CamID), qPrintable(savedCamID), savedValid,
-                       savedBinX, savedBinY, savedRoiX, savedRoiY, savedRoiW, savedRoiH);
-    }
-
-    DBGOPT_INFO("Retransfer skip restore format experiment bin=%ux%u roi=%u,%u,%u,%u source=%s",
-                restoreBinX, restoreBinY, restoreRoiX, restoreRoiY, restoreRoiW, restoreRoiH,
-                restoreFormatFromIni ? "ini" : "default");
-
-    DBGOPT_INFO("Retransfer skip normal capture pre-clear");
-
-    libqhyccd->CancelQHYCCDExposingAndReadout(camhandle);
-
-    uint32_t preStopRet = qhyWriteFPGAExtend(camhandle, 701, 0);
-    DBGOPT_INFO("Retransfer pre-stop FPGA[701]=0 ret=%u", preStopRet);
-    QThread::msleep(50);
-
-    if(libqhyccd->SetQHYCCDWriteFPGA)
-    {
-        uint32_t ddrPathRet = libqhyccd->SetQHYCCDWriteFPGA(camhandle, 0, 71, 1);
-        DBGOPT_INFO("Retransfer force DDR path FPGA[71]=1 ret=%u", ddrPathRet);
-        QThread::msleep(50);
-
-        DBGOPT_INFO("Retransfer clear DDR start");
-        uint32_t clearRet = libqhyccd->SetQHYCCDWriteFPGA(camhandle, 0, 63, 0);
-        DBGOPT_INFO("Retransfer clear DDR FPGA[63]=0 ret=%u", clearRet);
-        QThread::msleep(20);
-        clearRet = libqhyccd->SetQHYCCDWriteFPGA(camhandle, 0, 63, 1);
-        DBGOPT_INFO("Retransfer clear DDR FPGA[63]=1 ret=%u", clearRet);
-        QThread::msleep(20);
-        clearRet = libqhyccd->SetQHYCCDWriteFPGA(camhandle, 0, 63, 0);
-        DBGOPT_INFO("Retransfer clear DDR FPGA[63]=0 ret=%u", clearRet);
-        QThread::msleep(50);
-        DBGOPT_INFO("Retransfer clear DDR done");
-    }
-    else
-    {
-        DBGOPT_WARNING("Retransfer clear DDR skipped: SetQHYCCDWriteFPGA unavailable");
-    }
-
-    uint32_t resetRet = qhyWriteFPGAExtend(camhandle, 705, 0);
-    DBGOPT_INFO("Retransfer reset FPGA[705]=0 ret=%u", resetRet);
+    // FPGA 寄存器 69 是当前用于触发重传的控制位。
+    // 和 SdkDemo08 中的测试按钮保持一致：先写 1，保持 100ms，再写回 0，形成一个脉冲。
+    uint32_t ret1 = libqhyccd->SetQHYCCDWriteFPGA(camhandle, 0, 69, 1);
     QThread::msleep(100);
-    resetRet = qhyWriteFPGAExtend(camhandle, 705, 1);
-    DBGOPT_INFO("Retransfer reset FPGA[705]=1 ret=%u", resetRet);
-    QThread::msleep(100);
+    uint32_t ret2 = libqhyccd->SetQHYCCDWriteFPGA(camhandle, 0, 69, 0);
 
-    if(savedReplayBlocks != 0)
-    {
-        uint32_t lenRet = qhyWriteFPGAExtend(camhandle, 702, savedReplayBlocks);
-        DBGOPT_INFO("Retransfer set FPGA[702] replay blocks=%u ret=%u", savedReplayBlocks, lenRet);
-    }
-    else
-    {
-        DBGOPT_WARNING("Retransfer replay blocks missing, FPGA will use fallback length");
-    }
-
-    uint32_t ret1 = qhyWriteFPGAExtend(camhandle, 701, 1);
-
-    if(ret1 != QHYCCD_SUCCESS ){
-        uint32_t stopRet = qhyWriteFPGAExtend(camhandle, 701, 0);
-        DBGOPT_INFO("Retransfer stop FPGA[701]=0 ret=%u", stopRet);
-        if(singleFrameTimeoutChanged)
-        {
-            libqhyccd->SetQHYCCDSingleFrameTimeOut(camhandle, normalSingleFrameTimeoutMs);
-        }
+    // 如果任意一次写 FPGA 失败，说明重传触发指令没有可靠发出，直接返回失败。
+    if(ret1 != QHYCCD_SUCCESS || ret2 != QHYCCD_SUCCESS){
         return false;
     }
 
-    // ???????????????????????????????? GetQHYCCDSingleFrame()??
-    // ????? FPGA[69] ?????????????????3??????????????????????????
-    // ????????????????????????????????? DownloadCapThread ???? GetQHYCCDSingleFrame()??
+    // 连续模式下，EZCAP 已经启动了 BeginQHYCCDLive() 和 LiveCapThread，
+    // LiveCapThread 会持续调用 GetQHYCCDLiveFrame() 接收图像。
+    // 因此这里不能再启动单帧接收，否则可能和 live 线程同时读 USB 图像数据。
+    //
+    // 如果相机当前不是空闲状态，也说明已有曝光/下载/其它读取流程正在进行；
+    // 此时同样只发送重传脉冲，不额外插入一次 GetQHYCCDSingleFrame()。
+    if(ix.camStreamMode == 1 || ix.cameraState != Camera_Idle){
+        return true;
+    }
+
+    // 单帧模式空闲时，上位机默认没有持续调用 GetQHYCCDSingleFrame()。
+    // 只发送 FPGA[69] 的重传脉冲，硬件即使吐出图像数据，软件侧也没有接收者。
+    // 所以这里主动进入一次单帧下载流程，用 DownloadCapThread 调用 GetQHYCCDSingleFrame()。
     ix.imageReady = GetSingleFrame_Waiting;
     ix.ForceStop = false;
     ix.cameraState = Camera_Reading;
@@ -8094,24 +7799,30 @@ bool EZCAP::triggerRetransferAndReceiveFrame()
     DownloadCapThread *startedDownloadCap = downloadCap;
     QPointer<DownloadCapThread> retransferDownloadCap = downloadCap;
 
-
+    // 等待下载线程完成。DownloadCapThread 成功时会把 ix.imageReady 置为
+    // GetSingleFrame_Success，失败时置为 GetSingleFrame_Failed。
+    // 这里保持事件处理，避免界面在等待图像期间完全卡死。
     QElapsedTimer retransferTimer;
     retransferTimer.start();
     bool retransferTimeout = false;
-    const qint64 retransferWatchdogMs = 30000;
     while(ix.imageReady == GetSingleFrame_Waiting && ix.cameraState != Camera_Idle)
     {
-        if(retransferTimer.elapsed() > retransferWatchdogMs)
+        // SDK 和相机没有“是否支持重传”的查询接口，因此用超时作为兜底。
+        // 超时后把本次下载标记为丢弃，即使下载线程之后才返回成功，也不会增加 Count。
+        if(retransferTimer.elapsed() > 5000)
         {
             retransferTimeout = true;
-            DBGOPT_WARNING("Retransfer watchdog timeout after %lld ms", retransferTimer.elapsed());
             ix.ForceStop = true;
             ix.imageReady = GetSingleFrame_Failed;
 
+            // 标记当前 DownloadCapThread 即使之后才拿到数据，也要丢弃这一帧。
+            // 这样可以保证“超时失败”的重传不会增加 Count，也不会把迟到的图像当作有效结果显示。
             if(downloadCap){
                 downloadCap->discardFrame = true;
             }
 
+            // 超时说明 SDK 的 GetQHYCCDSingleFrame() 还没有返回。
+            // 这里主动通知 SDK 取消当前曝光/读出，促使后台 DownloadCapThread 尽快从阻塞调用中退出。
             libqhyccd->CancelQHYCCDExposingAndReadout(camhandle);
             break;
         }
@@ -8122,6 +7833,9 @@ bool EZCAP::triggerRetransferAndReceiveFrame()
 
     if(retransferTimeout && retransferDownloadCap && retransferDownloadCap->isRunning())
     {
+        // CancelQHYCCDExposingAndReadout() 只是发出取消请求，不代表后台线程已经立刻退出。
+        // 给 DownloadCapThread 一个短暂的收尾窗口，让它有机会从 GetQHYCCDSingleFrame() 返回，
+        // 并通过 finished 信号进入 retransferDownloadFinished() 做统一清理。
         QElapsedTimer cancelTimer;
         cancelTimer.start();
         while(retransferDownloadCap->isRunning() && cancelTimer.elapsed() < 3000)
@@ -8135,16 +7849,14 @@ bool EZCAP::triggerRetransferAndReceiveFrame()
 
     if(retransferTimeout && retransferDownloadCap && retransferDownloadCap->isRunning())
     {
+        // 如果等待取消后线程仍然没退出，不能把 cameraState 改回 Camera_Idle。
+        // 否则用户马上点击 Capture 时会启动第二个 GetQHYCCDSingleFrame()，和未结束的重传下载线程抢资源。
+        // 保持非空闲状态，让 Capture 入口的保护逻辑挡住下一次拍摄；等线程真正 finished 后再恢复 Idle。
         statusLabel_msg->setText(tr("Retransfer Timeout"));
-        uint32_t stopRet = qhyWriteFPGAExtend(camhandle, 701, 0);
-        DBGOPT_INFO("Retransfer stop FPGA[701]=0 ret=%u", stopRet);
-        if(singleFrameTimeoutChanged)
-        {
-            libqhyccd->SetQHYCCDSingleFrameTimeOut(camhandle, normalSingleFrameTimeoutMs);
-        }
         return false;
     }
 
+    // 走到这里说明没有超时，或者超时后的下载线程已经退出，可以安全恢复相机状态。
     statusLabel_msg->setText(tr("IDLE"));
     ix.cameraState = Camera_Idle;
     ix.ForceStop = false;
@@ -8153,179 +7865,13 @@ bool EZCAP::triggerRetransferAndReceiveFrame()
         downloadCap = NULL;
     }
 
+    // 重传触发成功但没有取回图像时，仍视为本次完整流程失败，方便 Favorite 显示 failed。
     if(ix.imageReady != GetSingleFrame_Success){
-        uint32_t stopRet = qhyWriteFPGAExtend(camhandle, 701, 0);
-        DBGOPT_INFO("Retransfer stop FPGA[701]=0 ret=%u", stopRet);
-        if(singleFrameTimeoutChanged)
-        {
-            libqhyccd->SetQHYCCDSingleFrameTimeOut(camhandle, normalSingleFrameTimeoutMs);
-        }
         return false;
     }
 
-    uint32_t stopRet = qhyWriteFPGAExtend(camhandle, 701, 0);
-    DBGOPT_INFO("Retransfer stop FPGA[701]=0 ret=%u after frame success", stopRet);
-    uint32_t restoreDdrPathRet = libqhyccd->SetQHYCCDWriteFPGA(camhandle, 0, 71, 0);
-    DBGOPT_INFO("Retransfer restore DDR path FPGA[71]=0 ret=%u after frame success", restoreDdrPathRet);
-
-    if(ix.workMode != ix.lastWorkMode)
-    {
-        ix.lastWorkMode = ix.workMode;
-    }
-
-    int wpos = 0, bpos = 0;
-    if(ix.workMode == WorkMode_Preview)
-    {
-        wpos = Preview_WPOS;
-        bpos = Preview_BPOS;
-    }
-    else
-    {
-        wpos = Capture_WPOS;
-        bpos = Capture_BPOS;
-    }
-    managerMenu->ui->hSlider_bPos->setValue(bpos);
-    managerMenu->ui->hSlider_wPos->setValue(wpos);
-    setStretchLUT(wpos, bpos);
-
-    displaySingleFrame(ix.FrameW_Last, ix.FrameH_Last, ix.ImgData_Last);
-
-    if(ix.zoomMode == Zoom_FitWindow || ix.zoomMode == Zoom_FillWindow)
-    {
-        viewBoxW = managerMenu->ui->img_screenView->width();
-        viewBoxH = managerMenu->ui->img_screenView->height();
-    }
-    else
-    {
-        viewBoxW = managerMenu->ui->img_screenView->width()  * scrollArea_ImgShow->width()  / (ix.FrameW_Last * ix.scaleFactor);
-        viewBoxH = managerMenu->ui->img_screenView->height() * scrollArea_ImgShow->height() / (ix.FrameH_Last * ix.scaleFactor);
-        viewBoxCX = managerMenu->ui->img_screenView->width()  * (double)ix.showLabelX / ix.scaleFactor / ix.FrameW_Last + viewBoxW / 2;
-        viewBoxCY = managerMenu->ui->img_screenView->height() * (double)ix.showLabelY / ix.scaleFactor / ix.FrameH_Last + viewBoxH / 2;
-    }
-
-    if(viewBoxCX < viewBoxW / 2) viewBoxCX = viewBoxW / 2;
-    if(viewBoxCY < viewBoxH / 2) viewBoxCY = viewBoxH / 2;
-    if(viewBoxCX > (managerMenu->ui->img_screenView->width() - viewBoxW / 2 - 1))
-        viewBoxCX = managerMenu->ui->img_screenView->width() - viewBoxW / 2 - 1;
-    if(viewBoxCY > (managerMenu->ui->img_screenView->height() - viewBoxH / 2 - 1))
-        viewBoxCY = managerMenu->ui->img_screenView->height() - viewBoxH / 2 - 1;
-    displayScreenViewImage(viewBoxW, viewBoxH, viewBoxCX, viewBoxCY);
-
-    displayHistogramImage(ix.FrameW_Last, ix.FrameH_Last, ix.ImgData_Last);
-    getOverScanBlack(ix.ImgData_Last, ix.FrameW_Last, ix.FrameH_Last);
-
-    QString str1 = QString::number(ix.FrameW_Last) + "x" + QString::number(ix.FrameH_Last);
-    statusLabel_imgSize->setText(str1);
-    showFrameCount();
-    noImgInWorkMode = false;
-
-    mainMenuBar->actOpenFolder->setEnabled(true);
-    mainMenuBar->actSaveBMP->setEnabled(true);
-    mainMenuBar->actSaveFIT->setEnabled(true);
-    mainMenuBar->actSaveJPG->setEnabled(true);
-    mainMenuBar->actSavePNG->setEnabled(true);
-    mainMenuBar->actSaveTIF->setEnabled(true);
-    if(singleFrameTimeoutChanged)
-    {
-        libqhyccd->SetQHYCCDSingleFrameTimeOut(camhandle, normalSingleFrameTimeoutMs);
-    }
-    return true;
-}
-
-bool EZCAP::triggerDdrRetransferAndReceiveFrame()
-{
-    uint32_t pathRet = libqhyccd->SetQHYCCDWriteFPGA(camhandle, 0, 71, 0);
-    DBGOPT_INFO("DDR retransfer restore FPGA[71]=0 ret=%u", pathRet);
-
-    uint32_t ret1 = libqhyccd->SetQHYCCDWriteFPGA(camhandle, 0, 69, 1);
-    DBGOPT_INFO("DDR retransfer trigger FPGA[69]=1 ret=%u", ret1);
-    QThread::msleep(100);
-    uint32_t ret2 = libqhyccd->SetQHYCCDWriteFPGA(camhandle, 0, 69, 0);
-    DBGOPT_INFO("DDR retransfer trigger FPGA[69]=0 ret=%u", ret2);
-
-    if(ret1 != QHYCCD_SUCCESS || ret2 != QHYCCD_SUCCESS)
-    {
-        return false;
-    }
-
-    if(ix.camStreamMode == 1 || ix.cameraState != Camera_Idle)
-    {
-        QThread::msleep(100);
-        return true;
-    }
-
-    ix.imageReady = GetSingleFrame_Waiting;
-    ix.ForceStop = false;
-    ix.cameraState = Camera_Reading;
-    statusLabel_msg->setText(tr("Downloading..."));
-    managerMenu->ui->proBar_capture->setValue(0);
-
-    downloadCap = new DownloadCapThread(this);
-    connect(downloadCap, SIGNAL(updateGPSInfo()), gpsTool_dialog, SLOT(updateGPSInfo()));
-    connect(downloadCap, SIGNAL(finished()), this, SLOT(retransferDownloadFinished()));
-    connect(downloadCap, SIGNAL(finished()), downloadCap, SLOT(deleteLater()));
-    downloadCap->start();
-    DownloadCapThread *startedDownloadCap = downloadCap;
-    QPointer<DownloadCapThread> retransferDownloadCap = downloadCap;
-
-    QElapsedTimer retransferTimer;
-    retransferTimer.start();
-    bool retransferTimeout = false;
-    const qint64 ddrRetransferWatchdogMs = 5000;
-    while(ix.imageReady == GetSingleFrame_Waiting && ix.cameraState != Camera_Idle)
-    {
-        if(retransferTimer.elapsed() > ddrRetransferWatchdogMs)
-        {
-            retransferTimeout = true;
-            DBGOPT_WARNING("DDR retransfer watchdog timeout after %lld ms", retransferTimer.elapsed());
-            ix.ForceStop = true;
-            ix.imageReady = GetSingleFrame_Failed;
-
-            if(downloadCap)
-            {
-                downloadCap->discardFrame = true;
-            }
-
-            libqhyccd->CancelQHYCCDExposingAndReadout(camhandle);
-            break;
-        }
-        managerMenu->ui->proBar_capture->setValue(libqhyccd->GetQHYCCDReadingProgress(camhandle));
-        QThread::msleep(1);
-        QApplication::processEvents();
-    }
-
-    if(retransferTimeout && retransferDownloadCap && retransferDownloadCap->isRunning())
-    {
-        QElapsedTimer cancelTimer;
-        cancelTimer.start();
-        while(retransferDownloadCap->isRunning() && cancelTimer.elapsed() < 3000)
-        {
-            QThread::msleep(1);
-            QApplication::processEvents();
-        }
-    }
-
-    managerMenu->ui->proBar_capture->setValue(100);
-
-    if(retransferTimeout && retransferDownloadCap && retransferDownloadCap->isRunning())
-    {
-        statusLabel_msg->setText(tr("Retransfer Timeout"));
-        return false;
-    }
-
-    statusLabel_msg->setText(tr("IDLE"));
-    ix.cameraState = Camera_Idle;
-    ix.ForceStop = false;
-    if(downloadCap == startedDownloadCap)
-    {
-        downloadCap = NULL;
-    }
-
-    if(ix.imageReady != GetSingleFrame_Success)
-    {
-        return false;
-    }
-
+    // 以下逻辑和普通单帧 Capture 成功后的显示流程保持一致：
+    // 更新当前工作模式、灰度拉伸参数、主图显示、ScreenView、直方图、状态栏尺寸和 Count。
     if(ix.workMode != ix.lastWorkMode)
     {
         ix.lastWorkMode = ix.workMode;
@@ -9325,11 +8871,7 @@ void EZCAP::updatePixelMagnifier(const QPoint &labelPos)
         return;
     }
 
-#if (QT_VERSION >= QT_VERSION_CHECK(6, 0, 0))
-    if(ui->label_ImgShow->pixmap().isNull() || ix.FrameW_Last == 0 || ix.FrameH_Last == 0)
-#else
     if(ui->label_ImgShow->pixmap() == NULL || ix.FrameW_Last == 0 || ix.FrameH_Last == 0)
-#endif
     {
         hidePixelMagnifier();
         return;
@@ -9373,19 +8915,11 @@ QImage EZCAP::sampleMagnifierRegion(const QPoint &imagePos, int regionSize)
     QImage region(regionSize, regionSize, QImage::Format_RGB32);
     region.fill(QColor(0, 0, 0));
 
-#if (QT_VERSION >= QT_VERSION_CHECK(6, 0, 0))
-    const QPixmap pm = ui->label_ImgShow->pixmap();
-    if(pm.isNull() || ix.FrameW_Last == 0 || ix.FrameH_Last == 0)
-        return region;
-
-    QImage shown = pm.toImage();
-#else
     const QPixmap *pm = ui->label_ImgShow->pixmap();
     if(pm == NULL || pm->isNull() || ix.FrameW_Last == 0 || ix.FrameH_Last == 0)
         return region;
 
     QImage shown = pm->toImage();
-#endif
     int labelW = ui->label_ImgShow->width();
     int labelH = ui->label_ImgShow->height();
     if(shown.isNull() || labelW <= 0 || labelH <= 0)

@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="UTF-8"?>
+﻿<?xml version="1.0" encoding="UTF-8"?>
 <ui version="4.0">
  <class>Favorite</class>
  <widget class="QDialog" name="Favorite">
@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>1041</width>
+    <width>1103</width>
     <height>501</height>
    </rect>
   </property>
@@ -1140,7 +1140,7 @@
     <widget class="QPushButton" name="pushButton_uart_cmd_send_rev">
      <property name="geometry">
       <rect>
-       <x>490</x>
+       <x>470</x>
        <y>350</y>
        <width>81</width>
        <height>41</height>
@@ -1212,7 +1212,7 @@
     <widget class="QPushButton" name="pushButton_uart_cmd_aperture1">
      <property name="geometry">
       <rect>
-       <x>260</x>
+       <x>220</x>
        <y>320</y>
        <width>61</width>
        <height>31</height>
@@ -1225,7 +1225,7 @@
     <widget class="QPushButton" name="pushButton_uart_cmd_aperture2">
      <property name="geometry">
       <rect>
-       <x>330</x>
+       <x>320</x>
        <y>320</y>
        <width>61</width>
        <height>31</height>
@@ -1251,7 +1251,7 @@
     <widget class="QPushButton" name="pushButton_uart_cmd_cfw1_test">
      <property name="geometry">
       <rect>
-       <x>100</x>
+       <x>80</x>
        <y>360</y>
        <width>61</width>
        <height>31</height>
@@ -1264,7 +1264,7 @@
     <widget class="QPushButton" name="pushButton_uart_cmd_cfw2_test">
      <property name="geometry">
       <rect>
-       <x>170</x>
+       <x>150</x>
        <y>360</y>
        <width>61</width>
        <height>31</height>
@@ -1277,34 +1277,34 @@
     <widget class="QPushButton" name="pushButton_uart_cmd_cfw600">
      <property name="geometry">
       <rect>
-       <x>250</x>
+       <x>220</x>
        <y>360</y>
-       <width>71</width>
+       <width>61</width>
        <height>31</height>
       </rect>
      </property>
      <property name="text">
-      <string>轮stat</string>
+      <string>轮状态</string>
      </property>
     </widget>
     <widget class="QPushButton" name="pushButton_uart_cmd_screen">
      <property name="geometry">
       <rect>
-       <x>330</x>
+       <x>290</x>
        <y>360</y>
        <width>31</width>
        <height>31</height>
       </rect>
      </property>
      <property name="text">
-      <string> 屏</string>
+      <string>屏幕</string>
      </property>
     </widget>
     <widget class="QPushButton" name="pushButton_uart_cmd_vrs">
      <property name="geometry">
       <rect>
-       <x>450</x>
-       <y>350</y>
+       <x>410</x>
+       <y>320</y>
        <width>41</width>
        <height>41</height>
       </rect>
@@ -1316,7 +1316,7 @@
     <widget class="QPushButton" name="pushButton_uart_cmd_debug">
      <property name="geometry">
       <rect>
-       <x>510</x>
+       <x>480</x>
        <y>330</y>
        <width>61</width>
        <height>21</height>
@@ -1332,14 +1332,30 @@
     <widget class="QPushButton" name="pushButton_uart_cmd_retransfer">
      <property name="geometry">
       <rect>
-       <x>370</x>
+       <x>330</x>
        <y>360</y>
-       <width>71</width>
+       <width>61</width>
        <height>31</height>
       </rect>
      </property>
      <property name="text">
       <string>重传</string>
+     </property>
+    </widget>
+    <widget class="QPushButton" name="pushButton_uart_cmd_emmc_enable">
+     <property name="geometry">
+      <rect>
+       <x>400</x>
+       <y>360</y>
+       <width>61</width>
+       <height>31</height>
+      </rect>
+     </property>
+     <property name="text">
+      <string>eMMC</string>
+     </property>
+     <property name="checkable">
+      <bool>true</bool>
      </property>
     </widget>
    </widget>

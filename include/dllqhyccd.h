@@ -1,4 +1,4 @@
-#ifndef DLLQHYCCD_H
+﻿#ifndef DLLQHYCCD_H
 #define DLLQHYCCD_H
 #include <QLibrary>
 #include <QDebug>
@@ -46,7 +46,7 @@ public:
     typedef uint32_t        (__stdcall *QTInitQHYCCDResource)(void);
     typedef uint32_t        (__stdcall *QTGetQHYCCDFWVersion)(qhyccd_handle *,uint8_t*);
     typedef uint32_t        (__stdcall *QTGetQHYCCDFPGAVersion)(qhyccd_handle *,uint8_t,uint8_t*);
-    typedef uint32_t        (__stdcall *QTSetQHYCCDWriteFPGA)(qhyccd_handle *,uint8_t,uint8_t,uint8_t);
+   typedef uint32_t        (__stdcall *QTSetQHYCCDWriteFPGA)(qhyccd_handle *,uint8_t,uint16_t,uint8_t);
     typedef uint32_t        (__stdcall *QTSetQHYCCDWriteCMOS)(qhyccd_handle *,uint8_t,uint16_t,uint16_t);
     typedef uint32_t        (__stdcall *QTGetQHYCCDSDKVersion)(uint32_t *,uint32_t *,uint32_t *,uint32_t *);
     typedef uint32_t        (__stdcall *QTGetQHYCCDSDKBuildVersion)(void);
@@ -72,6 +72,7 @@ public:
     typedef uint32_t        (__stdcall *QTGetQHYCCDId)(uint32_t,char*);
     typedef qhyccd_handle * (__stdcall *QTOpenQHYCCD)(char*);
     typedef uint32_t        (__stdcall *QTSetQHYCCDParam)(qhyccd_handle *,CONTROL_ID, double);
+    typedef uint32_t        (__stdcall *QTSetQHYCCDSingleFrameTimeOut)(qhyccd_handle *,uint32_t);
     typedef uint32_t        (__stdcall *QTSetQHYCCDReadMode)(qhyccd_handle *,uint32_t);
     typedef uint32_t        (__stdcall *QTSetQHYCCDStreamMode)(qhyccd_handle *,uint8_t);
     typedef uint32_t        (__stdcall *QTSetQHYCCDBinMode)(qhyccd_handle *,uint32_t,uint32_t);
@@ -189,6 +190,7 @@ public:
     QTGetQHYCCDId                     GetQHYCCDId                     = NULL;
     QTOpenQHYCCD                      OpenQHYCCD                      = NULL;
     QTSetQHYCCDParam                  SetQHYCCDParam                  = NULL;
+    QTSetQHYCCDSingleFrameTimeOut     SetQHYCCDSingleFrameTimeOut     = NULL;
     QTSetQHYCCDReadMode               SetQHYCCDReadMode               = NULL;
     QTSetQHYCCDStreamMode             SetQHYCCDStreamMode             = NULL;
     QTSetQHYCCDBinMode                SetQHYCCDBinMode                = NULL;

@@ -132,6 +132,8 @@ private slots:
 
     void on_pushButton_uart_cmd_retransfer_clicked();
 
+    void on_pushButton_uart_cmd_emmc_enable_clicked(bool checked);
+
 public:
     Ui::Favorite *ui;
 };

@@ -2,6 +2,7 @@
 #include "ui_favorite.h"
 #include "include/dllqhyccd.h"
 #include "ezCap.h"
+#include "fpgaAccess.h"
 
 //#include "qhyccdStatus.h"
 #include "myStruct.h"
@@ -804,5 +805,18 @@ void Favorite::on_pushButton_uart_cmd_retransfer_clicked()
     }else{
         // 返回 false 表示 FPGA 触发指令发送失败，或者单帧模式下后续没有成功取回图像。
         ui->textEdit_uart_cmd_rev->append("Retransfer failed");
+    }
+}
+
+void Favorite::on_pushButton_uart_cmd_emmc_enable_clicked(bool checked)
+{
+    uint32_t ret = qhyWriteFPGAExtend(camhandle, 700, checked ? 1 : 0);
+    ui->textEdit_uart_cmd_rev->append(QString("eMMC %1 ret=%2")
+                                      .arg(checked ? "enable" : "disable")
+                                      .arg(ret));
+
+    if(ret != QHYCCD_SUCCESS)
+    {
+        ui->pushButton_uart_cmd_emmc_enable->setChecked(!checked);
     }
 }

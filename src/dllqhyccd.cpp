@@ -46,6 +46,7 @@ dllqhyccd::dllqhyccd()
         GetQHYCCDId                     = (QTGetQHYCCDId)dll.resolve("_GetQHYCCDId@8");
         OpenQHYCCD                      = (QTOpenQHYCCD)dll.resolve("_OpenQHYCCD@4");
         SetQHYCCDParam                  = (QTSetQHYCCDParam)dll.resolve("_SetQHYCCDParam@16");
+        SetQHYCCDSingleFrameTimeOut     = (QTSetQHYCCDSingleFrameTimeOut)dll.resolve("_SetQHYCCDSingleFrameTimeOut@8");
         SetQHYCCDReadMode               = (QTSetQHYCCDReadMode)dll.resolve("_SetQHYCCDReadMode@8");
         SetQHYCCDStreamMode             = (QTSetQHYCCDStreamMode)dll.resolve("_SetQHYCCDStreamMode@8");
         SetQHYCCDBinMode                = (QTSetQHYCCDBinMode)dll.resolve("_SetQHYCCDBinMode@12");
@@ -165,6 +166,7 @@ dllqhyccd::dllqhyccd()
     GetQHYCCDId                     = (QTGetQHYCCDId)dll.resolve("GetQHYCCDId");
     OpenQHYCCD                      = (QTOpenQHYCCD)dll.resolve("OpenQHYCCD");
     SetQHYCCDParam                  = (QTSetQHYCCDParam)dll.resolve("SetQHYCCDParam");
+    SetQHYCCDSingleFrameTimeOut     = (QTSetQHYCCDSingleFrameTimeOut)dll.resolve("SetQHYCCDSingleFrameTimeOut");
     SetQHYCCDReadMode               = (QTSetQHYCCDReadMode)dll.resolve("SetQHYCCDReadMode");
     SetQHYCCDStreamMode             = (QTSetQHYCCDStreamMode)dll.resolve("SetQHYCCDStreamMode");
     SetQHYCCDBinMode                = (QTSetQHYCCDBinMode)dll.resolve("SetQHYCCDBinMode");
