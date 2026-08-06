@@ -9,9 +9,11 @@
 #include <opencv/highgui.h>
 #include <QImage>
 #include <QMutex>
+#include <QMutexLocker>
 #include <QQueue>
 
 extern QMutex fpsMutex;
+extern QMutex gpsMutex;
 extern qhyccd_handle *camhandle;
 
 LiveCapThread::LiveCapThread(QObject *parent) :
@@ -59,8 +61,11 @@ void LiveCapThread::run()
             if(ix.GPS)
             {
                 ix.GPS_LocalTime = QDateTime::currentDateTime().toString("yyyy-MM-dd_hh-mm-ss-zzz");
-                memset(ix.ImgData_GPS, 0, 1024);
-                memcpy(ix.ImgData_GPS, ix.ImgData, 1024);
+                {
+                    QMutexLocker locker(&gpsMutex);
+                    memset(ix.ImgData_GPS, 0, 1024);
+                    memcpy(ix.ImgData_GPS, ix.ImgData, 1024);
+                }
                 emit gotGPSData();
             }
 

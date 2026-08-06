@@ -354,6 +354,8 @@ struct IX
     bool   Cooler_Fun;
     int    Cooler_Mode; //the cooler control mode, 0 disalble; 1:manual; 2:auto control
     double Temp_Now; //当前监控到的温度
+    bool   FPGATemp_Fun;
+    double FPGATemp_Now;
     double PWM_Now;//当前功率
     int    Voltage_Now;//当前电压
     double Temp_Target;

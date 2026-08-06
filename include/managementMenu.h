@@ -25,6 +25,8 @@ public:
     int SwitchReadmodeBinFormat();
     int ResetParameters();
     int CloseCamera();
+    void CollapseSettingPanels(); /* fold live panels while applying readmode/bin/bits/roi */
+    void RestoreSettingPanels();  /* restore panels after setting finishes */
 
 private slots:
 

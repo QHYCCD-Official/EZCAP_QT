@@ -88,6 +88,7 @@ struct INIFILEPARAM iniFileParams;
 
 //QMutex capImgMutex;
 QMutex fpsMutex;
+QMutex gpsMutex;
 QMutex copyMutex;
 QMutex showMutex;
 QMutex histMutex;
@@ -498,7 +499,11 @@ EZCAP::EZCAP(QWidget *parent) :
     statusLabel_rgb->setFixedSize(155,18);
     statusLabel_Temp = new QLabel(this);//显示温度
     statusLabel_Temp->setFrameShape(QFrame::NoFrame);
-    statusLabel_Temp->setFixedSize(75, 18);
+    statusLabel_Temp->setFixedSize(120, 18);
+    statusLabel_FPGATemp = new QLabel(this);
+    statusLabel_FPGATemp->setFrameShape(QFrame::NoFrame);
+    statusLabel_FPGATemp->setFixedSize(110, 18);
+    statusLabel_FPGATemp->setVisible(false);
     statusLabel_RH = new QLabel(this);
     statusLabel_RH->setFixedSize(60, 18);
     statusLabel_PRESS =new QLabel(this);
@@ -512,6 +517,7 @@ EZCAP::EZCAP(QWidget *parent) :
     ui->statusBar->addWidget(statusLabel_mousePos);
     ui->statusBar->addWidget(statusLabel_rgb);
     ui->statusBar->addWidget(statusLabel_Temp);
+    ui->statusBar->addWidget(statusLabel_FPGATemp);
     ui->statusBar->addWidget(statusLabel_RH);
     ui->statusBar->addWidget(statusLabel_PRESS);
     ui->statusBar->addWidget(statusLabel_msg);
@@ -916,6 +922,8 @@ EZCAP::EZCAP(QWidget *parent) :
     ix.Cooler_Fun                 = false;
     ix.Cooler_Mode                = Cooler_Manual;
     ix.Temp_Now                   = 0.0;
+    ix.FPGATemp_Fun               = false;
+    ix.FPGATemp_Now               = 0.0;
     ix.PWM_Now                    = 0.0;
     ix.Voltage_Now                = 0;
     ix.Temp_Target                = 0.0;
@@ -1901,6 +1909,12 @@ EZCAP::~EZCAP()
     {
         delete statusLabel_Temp;
         statusLabel_Temp = NULL;
+    }
+
+    if(statusLabel_FPGATemp)
+    {
+        delete statusLabel_FPGATemp;
+        statusLabel_FPGATemp = NULL;
     }
 
     if(statusLabel_RH)
@@ -2894,7 +2908,7 @@ bool EZCAP::getParamsFromCamera()
         if(rectScreen.width()  > ix.maxScreenW) ix.maxScreenW = rectScreen.width();
         if(rectScreen.height() > ix.maxScreenH) ix.maxScreenH = rectScreen.height();
     }
-    ix.ImgData         = new unsigned char[ix.ImageW_Max * ix.ImageH_Max * 3];//分配内存
+    ix.ImgData         = new unsigned char[ix.ImageW_Max * ix.ImageH_Max * 2 * 3];//分配内存
     ix.ImgData_Last    = new unsigned char[ix.ImageW_Max * ix.ImageH_Max * 2 * 3/*ix.maxScreenW * ix.maxScreenH * 4 * 3*/];//分配内存 4:0.25X 3:channels=3
     ix.ImgData_GPS     = new unsigned char[1024];
     ix.ImgData_Save    = new unsigned char[(ix.ImageW_Max+3)/4*4 * ix.ImageH_Max * 3];
@@ -2923,6 +2937,11 @@ void EZCAP::camera_connected()
     ix.onLiveMode = false;
     ix.plannerState = PlannerStatus_Done;
 
+    ix.FPGATemp_Fun = qhyReadFPGA(camhandle, 204) == 0x02;
+    ix.FPGATemp_Now = 0.0;
+    statusLabel_FPGATemp->clear();
+    statusLabel_FPGATemp->setVisible(ix.FPGATemp_Fun);
+
     if(ix.Cooler_Fun)
     {
         threadTempControl->start();
@@ -2932,6 +2951,11 @@ void EZCAP::camera_connected()
 void EZCAP::camera_disconnected()
 {
     resetFrameCount();
+
+    ix.FPGATemp_Fun = false;
+    ix.FPGATemp_Now = 0.0;
+    statusLabel_FPGATemp->clear();
+    statusLabel_FPGATemp->setVisible(false);
 
     if(planner_dialog->isVisible())
         planner_dialog->close();
@@ -7592,10 +7616,13 @@ void EZCAP::mgrMenu_pBtn_capture_clicked()
             else DBGOPT_INFO("SetQHYCCDParam() CONTROL_Offset Failed! | Offset = %d", ix.Offset);
         }
 
-        ix.ExpTime = managerMenu->ui->hSlider_exposure_capture->value();
+        // Capture exposure may be fractional. The slider is only an integer
+        // approximation for navigation; preserve the value typed by the user.
+        ix.ExpTime = managerMenu->ui->lineEdit_exposure_capture->text().toDouble();
         if(managerMenu->ui->comBoxSingleUnit->currentIndex() == 0) ix.ExpUnit = 1.0;
         if(managerMenu->ui->comBoxSingleUnit->currentIndex() == 1) ix.ExpUnit = 1000.0;
         if(managerMenu->ui->comBoxSingleUnit->currentIndex() == 2) ix.ExpUnit = 1000000.0;
+        if(managerMenu->ui->comBoxSingleUnit->currentIndex() == 3) ix.ExpUnit = 60000000.0;
         if(ix.ExpUnit != ix.ExpUnit_Last || ix.ExpTime != ix.ExpTime_Last)
         {
             ret = libqhyccd->SetQHYCCDParam(camhandle,CONTROL_EXPOSURE, ix.ExpTime*ix.ExpUnit);

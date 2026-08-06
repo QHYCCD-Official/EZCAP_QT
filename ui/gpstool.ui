@@ -355,6 +355,58 @@
      <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignVCenter</set>
     </property>
    </widget>
+   <widget class="QLabel" name="label_GPSUtcTime">
+    <property name="geometry">
+     <rect>
+      <x>10</x>
+      <y>390</y>
+      <width>341</width>
+      <height>16</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>gps_utc    : --</string>
+    </property>
+   </widget>
+   <widget class="QLabel" name="label_GPSTimeDifference">
+    <property name="geometry">
+     <rect>
+      <x>10</x>
+      <y>415</y>
+      <width>341</width>
+      <height>16</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>time_diff  : -- ms</string>
+    </property>
+   </widget>
+   <widget class="QLabel" name="label_GPSSyncStatus">
+    <property name="geometry">
+     <rect>
+      <x>10</x>
+      <y>440</y>
+      <width>341</width>
+      <height>16</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>sync_status: stopped</string>
+    </property>
+   </widget>
+   <widget class="QPushButton" name="pBtn_GPSSyncSystemTime">
+    <property name="geometry">
+     <rect>
+      <x>10</x>
+      <y>470</y>
+      <width>181</width>
+      <height>28</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>Start system time sync</string>
+    </property>
+   </widget>
   </widget>
   <widget class="QGroupBox" name="groupBox_GPSSlave">
    <property name="geometry">

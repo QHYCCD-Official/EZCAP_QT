@@ -430,9 +430,13 @@ ManagementMenu::ManagementMenu(QWidget *parent) :
 #if (QT_VERSION >= QT_VERSION_CHECK(6, 0, 0))
     QRegularExpression rxInt("[0-9]+$");
     QValidator *regInt = new QRegularExpressionValidator(rxInt, this);
+    QRegularExpression rxExposure("^(?:[0-9]+(?:\\.[0-9]*)?|\\.[0-9]+)$");
+    QValidator *regExposure = new QRegularExpressionValidator(rxExposure, this);
 #else
     QRegExp rxInt("[0-9]+$");
     QValidator *regInt = new QRegExpValidator(rxInt, this);
+    QRegExp rxExposure("^(?:[0-9]+(?:\\.[0-9]*)?|\\.[0-9]+)$");
+    QValidator *regExposure = new QRegExpValidator(rxExposure, this);
 #endif
     ui->lineEdit_Gain_preview->setValidator(regInt);
     ui->lineEdit_Offset_preview->setValidator(regInt);
@@ -442,7 +446,7 @@ ManagementMenu::ManagementMenu(QWidget *parent) :
     ui->lineEdit_exposure_focus->setValidator(regInt);
     ui->lineEdit_Gain_capture->setValidator(regInt);
     ui->lineEdit_Offset_capture->setValidator(regInt);
-    ui->lineEdit_exposure_capture->setValidator(regInt);
+    ui->lineEdit_exposure_capture->setValidator(regExposure);
     ui->lineEditLiveExp->setValidator(regInt);
     ui->lineEditLiveGain->setValidator(regInt);
     ui->lineEditLiveOffset->setValidator(regInt);
@@ -1513,19 +1517,21 @@ int ManagementMenu::DoubleToInt(double d)
     }
 }
 
-int ManagementMenu::SwitchReadmodeBinFormat()
-{
-    uint32_t ret = QHYCCD_ERROR;
 
-    //初始化菜单界面显示
+void ManagementMenu::CollapseSettingPanels()
+{
+    // Fold management accordion panels while camera settings are applied,
+    // matching original SwitchReadmodeBinFormat UI behavior.
     if(ix.camStreamMode == 0)
     {
-        ui->head_capture->click();
+        if(ui->head_capture->isChecked())
+            ui->head_capture->click();
         ui->head_capture->setCheckable(false);
     }
     else if(ix.camStreamMode == 1)
     {
-        ui->head_liveimageformat->click();
+        if(ui->head_liveimageformat->isChecked())
+            ui->head_liveimageformat->click();
         ui->head_liveimageformat->setCheckable(false);
 
         if(ui->head_save->isChecked())
@@ -1560,11 +1566,6 @@ int ManagementMenu::SwitchReadmodeBinFormat()
         ui->head_livecamerasetup->setCheckable(false);
         ui->head_liveimagesetup->setCheckable(false);
     }
-    else
-    {
-        OutputDebug("EZCAPERROR | %s | %s | Stream Mode Value Error!", __FILE__, __FUNCTION__);
-        return 1;
-    }
 
     if(ui->head_Roi->isChecked())
     {
@@ -1597,14 +1598,63 @@ int ManagementMenu::SwitchReadmodeBinFormat()
     ui->head_screenView->setCheckable(false);
     ui->head_hist->setCheckable(false);
 
-    //等待界面初始化完成
-    int time = 0;
-    while(time < 5)
+    // Paint folded UI before long SDK work
+    for(int i = 0; i < 5; i++)
     {
         QThread::msleep(1);
-        time ++;
         QApplication::processEvents();
     }
+}
+
+void ManagementMenu::RestoreSettingPanels()
+{
+    if(ix.camStreamMode == 0)
+    {
+        ui->head_capture->setCheckable(true);
+        if(!ui->head_capture->isChecked())
+            ui->head_capture->click();
+    }
+    else if(ix.camStreamMode == 1)
+    {
+        ui->head_save->setCheckable(true);
+        ui->head_liveimageformat->setCheckable(true);
+        ui->head_livecamerasetup->setCheckable(true);
+        ui->head_liveimagesetup->setCheckable(true);
+
+        if(!ui->head_liveimageformat->isChecked())
+            ui->head_liveimageformat->click();
+        if(saveStatus && !ui->head_save->isChecked())
+            ui->head_save->click();
+        if(cameraSetupStatus && !ui->head_livecamerasetup->isChecked())
+            ui->head_livecamerasetup->click();
+        if(imageSetupStatus && !ui->head_liveimagesetup->isChecked())
+            ui->head_liveimagesetup->click();
+    }
+
+    ui->head_Roi->setCheckable(true);
+    ui->head_screenView->setCheckable(true);
+    ui->head_hist->setCheckable(true);
+    if(screenViewStatus && !ui->head_screenView->isChecked())
+        ui->head_screenView->click();
+    if(histStatus && !ui->head_hist->isChecked())
+        ui->head_hist->click();
+    if(RoiStatus && !ui->head_Roi->isChecked())
+        ui->head_Roi->click();
+
+    QApplication::processEvents();
+}
+
+int ManagementMenu::SwitchReadmodeBinFormat()
+{
+    uint32_t ret = QHYCCD_ERROR;
+
+    if(ix.camStreamMode != 0 && ix.camStreamMode != 1)
+    {
+        OutputDebug("EZCAPERROR | %s | %s | Stream Mode Value Error!", __FILE__, __FUNCTION__);
+        return 1;
+    }
+
+    CollapseSettingPanels();
 
     //关闭定时器
     if(ix.Cooler_Fun)
@@ -1629,15 +1679,16 @@ int ManagementMenu::SwitchReadmodeBinFormat()
     if(ret == QHYCCD_ERROR)
     {
         OutputDebug("EZCAPWARNING | %s | %s | CloseQHYCCD() Failed!", __FILE__, __FUNCTION__);
+        RestoreSettingPanels();
         return 1;
     }
 
-    ret = libqhyccd->ReleaseQHYCCDResource();
-    if(ret == QHYCCD_ERROR)
-    {
-        OutputDebug("EZCAPWARNING | %s | %s | ReleaseQHYCCDResource() Failed!", __FILE__, __FUNCTION__);
-        return 1;
-    }
+    // ret = libqhyccd->ReleaseQHYCCDResource();
+    // if(ret == QHYCCD_ERROR)
+    // {
+    //     OutputDebug("EZCAPWARNING | %s | %s | ReleaseQHYCCDResource() Failed!", __FILE__, __FUNCTION__);
+    //     return 1;
+    // }
 
     camhandle = libqhyccd->OpenQHYCCD(ix.CamID.toLocal8Bit().data());
     if(camhandle != NULL)
@@ -1646,6 +1697,7 @@ int ManagementMenu::SwitchReadmodeBinFormat()
         if(ret != QHYCCD_SUCCESS)
         {
             OutputDebug("EZCAPWARNING | %s | %s | SetQHYCCDReadMode() Failed!", __FILE__, __FUNCTION__);
+            RestoreSettingPanels();
             return 1;
         }
         ix.ReadMode_Last = ix.ReadMode;
@@ -1654,6 +1706,7 @@ int ManagementMenu::SwitchReadmodeBinFormat()
         if(ret != QHYCCD_SUCCESS)
         {
             OutputDebug("EZCAPWARNING | %s | %s | SetQHYCCDStreamMode() Failed!", __FILE__, __FUNCTION__);
+            RestoreSettingPanels();
             return 1;
         }
 
@@ -1661,6 +1714,7 @@ int ManagementMenu::SwitchReadmodeBinFormat()
         if(ret != QHYCCD_SUCCESS)
         {
             OutputDebug("EZCAPWARNING | %s | %s | InitQHYCCD() Failed!", __FILE__, __FUNCTION__);
+            RestoreSettingPanels();
             return 1;
         }
 
@@ -1675,6 +1729,7 @@ int ManagementMenu::SwitchReadmodeBinFormat()
         else
         {
             OutputDebug("EZCAPWARNING | %s | %s | GetQHYCCDChipInfo() Failed!", __FILE__, __FUNCTION__);
+            RestoreSettingPanels();
             return 1;
         }
 
@@ -1691,12 +1746,14 @@ int ManagementMenu::SwitchReadmodeBinFormat()
         else
         {
             OutputDebug("EZCAPWARNING | %s | %s | GetQHYCCDReadModeResolution() Failed!", __FILE__, __FUNCTION__);
+            RestoreSettingPanels();
             return 1;
         }
 
         if(ix.CCD_ImageW != ix.ReadMode_ImageW || ix.CCD_ImageH != ix.ReadMode_ImageH)
         {
             OutputDebug("EZCAPWARNING | %s | %s | ChipInfo Resolution != Read Mode Resolution", __FILE__, __FUNCTION__);
+            RestoreSettingPanels();
             return 1;
         }
 
@@ -1704,13 +1761,14 @@ int ManagementMenu::SwitchReadmodeBinFormat()
         if(ret != QHYCCD_SUCCESS)
         {
             OutputDebug("EZCAPWARNING | %s | %s | SetQHYCCDDebayerOnOff() Failed!", __FILE__, __FUNCTION__);
-//            return 1;
+            // keep going; Debayer failure is non-fatal here (original behavior)
         }
 
         ret = libqhyccd->SetQHYCCDParam(camhandle, CONTROL_TRANSFERBIT, ix.Bits);
         if(ret != QHYCCD_SUCCESS)
         {
             OutputDebug("EZCAPWARNING | %s | %s | SetQHYCCDParam() CONTROL_TRANSFERBIT Failed!", __FILE__, __FUNCTION__);
+            RestoreSettingPanels();
             return 1;
         }
 
@@ -1751,6 +1809,7 @@ int ManagementMenu::SwitchReadmodeBinFormat()
         if(ret != QHYCCD_SUCCESS)
         {
             OutputDebug("EZCAPWARNING | %s | %s | SetQHYCCDBinMode() Failed!", __FILE__, __FUNCTION__);
+            RestoreSettingPanels();
             return 1;
         }
         else
@@ -1767,6 +1826,7 @@ int ManagementMenu::SwitchReadmodeBinFormat()
         if(ret != QHYCCD_SUCCESS)
         {
             OutputDebug("EZCAPWARNING | %s | %s | SetQHYCCDResolution() Failed!", __FILE__, __FUNCTION__);
+            RestoreSettingPanels();
             return 1;
         }
         else
@@ -1796,42 +1856,7 @@ int ManagementMenu::SwitchReadmodeBinFormat()
         OutputDebug("EZCAPWARNING | %s | %s | OpenQHYCCD() Failed!", __FILE__, __FUNCTION__);
     }
 
-    //初始化菜单界面显示
-    if(ix.camStreamMode == 0)
-    {
-        ui->head_capture->setCheckable(true);
-        ui->head_capture->click();
-    }
-    else if(ix.camStreamMode == 1)
-    {
-        ui->head_save->setCheckable(true);
-        ui->head_liveimageformat->setCheckable(true);
-        ui->head_livecamerasetup->setCheckable(true);
-        ui->head_liveimagesetup->setCheckable(true);
-
-        ui->head_liveimageformat->click();
-        if(saveStatus)
-            ui->head_save->click();
-        if(cameraSetupStatus)
-            ui->head_livecamerasetup->click();
-        if(imageSetupStatus)
-            ui->head_liveimagesetup->click();
-    }
-    else
-    {
-        OutputDebug("EZCAPERROR | %s | %s | Stream Mode Value Error!", __FILE__, __FUNCTION__);
-        return 1;
-    }
-
-    ui->head_Roi->setCheckable(true);
-    ui->head_screenView->setCheckable(true);
-    ui->head_hist->setCheckable(true);
-    if(screenViewStatus)
-        ui->head_screenView->click();
-    if(histStatus)
-        ui->head_hist->click();
-    if(RoiStatus)
-        ui->head_Roi->click();
+    RestoreSettingPanels();
 
     //打开制冷定时器
     if(ix.Cooler_Fun)
@@ -2609,16 +2634,28 @@ void ManagementMenu::on_lineEdit_exposure_capture_textChanged(const QString &arg
 {
     if(arg1 == "") return;
 
-    if(ui->lineEdit_exposure_capture->text().toInt() > ui->hSlider_exposure_capture->maximum())
-        ui->lineEdit_exposure_capture->setText(QString::number(ui->hSlider_exposure_capture->maximum()));
-    if(ui->lineEdit_exposure_capture->text().toInt() < ui->hSlider_exposure_capture->minimum())
-        ui->lineEdit_exposure_capture->setText(QString::number(ui->hSlider_exposure_capture->minimum()));
+    bool ok = false;
+    double exposure = arg1.toDouble(&ok);
+    if(!ok) return;
 
+    if(exposure > ui->hSlider_exposure_capture->maximum())
+    {
+        exposure = ui->hSlider_exposure_capture->maximum();
+        ui->lineEdit_exposure_capture->setText(QString::number(ui->hSlider_exposure_capture->maximum()));
+    }
+    if(exposure < ui->hSlider_exposure_capture->minimum())
+    {
+        exposure = ui->hSlider_exposure_capture->minimum();
+        ui->lineEdit_exposure_capture->setText(QString::number(ui->hSlider_exposure_capture->minimum()));
+    }
+
+    // The slider remains integer-based, but the line edit is the authoritative
+    // value so a fractional exposure is not lost when Capture is pressed.
     ui->hSlider_exposure_capture->blockSignals(true);
-    ui->hSlider_exposure_capture->setValue(ui->lineEdit_exposure_capture->text().toInt());
+    ui->hSlider_exposure_capture->setValue(qRound(exposure));
     ui->hSlider_exposure_capture->blockSignals(false);
 
-//    ix.ExpTime = ui->lineEdit_exposure_capture->text().toDouble();
+    ix.ExpTime = exposure;
 }
 
 void ManagementMenu::on_comBoxSingleUnit_currentTextChanged()
@@ -3493,30 +3530,34 @@ void ManagementMenu::on_comBoxLiveBin_currentTextChanged(const QString &arg1)
 
 void ManagementMenu::on_comBoxLiveBits_currentTextChanged(const QString &arg1)
 {
+    /* Bit-depth switch must NOT Close/Release/Open the camera.
+       SwitchReadmodeBinFormat() tears down SDK resources and can leave
+       camhandle invalid or PCIE live state inconsistent, which crashes on
+       8->16 (large pack). Follow LiveFrameSample:
+       StopLive -> SetBits -> BeginLive.
+       Still fold/restore management panels like other setting switches. */
     uint32_t ret = QHYCCD_ERROR;
+    const uint32_t oldBits = ix.Bits;
+    const bool oldColor = ix.Color;
+
+    CollapseSettingPanels();
+    ui->comBoxLiveBits->blockSignals(true);
 
     if(mainWidget->threadProcessImage->isRunning())
         mainWidget->threadProcessImage->stop();
 
     if(mainWidget->liveCap->isRunning())
-    {
         mainWidget->liveCap->closeThread();
-//        frameQueue.clear();
-//        histQueue.clear();
 
-//        mainWidget->liveCap = new LiveCapThread();
-//        connect(mainWidget->liveCap, SIGNAL(gotFPSData()), mainWidget, SLOT(showFPS()));
-//        connect(mainWidget->liveCap, SIGNAL(gotGPSData()), gpsTool_dialog, SLOT(updateGPSInfo()));
-//        connect(mainWidget->liveCap, SIGNAL(gotCalData()), mainWidget, SLOT(saveCal2Image()));
-////        connect(mainWidget->liveCap, SIGNAL(gotDarkData()), mainWidget, SLOT(saveDark2Image()));
-//        connect(mainWidget->liveCap, SIGNAL(finished()), mainWidget->liveCap, SLOT(deleteLater()));
-    }
+    ix.locked = false;
 
-    ret = libqhyccd->StopQHYCCDLive(camhandle);
-    if(ret == QHYCCD_ERROR)
+    if(camhandle != NULL)
     {
-        OutputDebug("EZCAPWARNING | %s | %s | StopQHYCCDLive() Failed!", __FILE__, __FUNCTION__);
-        return;
+        ret = libqhyccd->StopQHYCCDLive(camhandle);
+        if(ret == QHYCCD_ERROR)
+        {
+            OutputDebug("EZCAPWARNING | %s | %s | StopQHYCCDLive() Failed!", __FILE__, __FUNCTION__);
+        }
     }
 
     if(arg1 == "RAW8" || arg1 == "MONO8")
@@ -3526,7 +3567,6 @@ void ManagementMenu::on_comBoxLiveBits_currentTextChanged(const QString &arg1)
             ui->comBoxLiveColor->setVisible(true);
             ui->labelLiveColor->setVisible(true);
         }
-
         ix.Bits = 8;
         ix.Color = false;
     }
@@ -3537,7 +3577,6 @@ void ManagementMenu::on_comBoxLiveBits_currentTextChanged(const QString &arg1)
             ui->comBoxLiveColor->setVisible(true);
             ui->labelLiveColor->setVisible(true);
         }
-
         ix.Bits = 16;
         ix.Color = false;
     }
@@ -3545,30 +3584,66 @@ void ManagementMenu::on_comBoxLiveBits_currentTextChanged(const QString &arg1)
     {
         ui->comBoxLiveColor->setVisible(false);
         ui->labelLiveColor->setVisible(false);
-
         ix.Bits = 8;
         ix.Color = true;
     }
-
-    if(SwitchReadmodeBinFormat())
+    else
     {
-        OutputDebug("EZCAPERROR | %s | %s | Switch Readmode Bin Format failed", __FILE__, __FUNCTION__);
-        QMessageBox::critical(this,tr("Error"),tr("Camera switch read/bin/format mode failed!"), QMessageBox::Ok);
-
-        ix.Bits = ix.Bits_Last;
-        ix.Color = ix.Color_Last;
-        CloseCamera();
-        emit mainWidget->disconnect_camera();
+        OutputDebug("EZCAPWARNING | %s | %s | Unknown live bits text: %s", __FILE__, __FUNCTION__, arg1.toLocal8Bit().data());
+        ui->comBoxLiveBits->blockSignals(false);
+        RestoreSettingPanels();
         return;
+    }
+
+    if(camhandle == NULL)
+    {
+        OutputDebug("EZCAPERROR | %s | %s | camhandle is NULL", __FILE__, __FUNCTION__);
+        ix.Bits = oldBits;
+        ix.Color = oldColor;
+        ui->comBoxLiveBits->blockSignals(false);
+        RestoreSettingPanels();
+        return;
+    }
+
+    ret = libqhyccd->SetQHYCCDDebayerOnOff(camhandle, ix.Color);
+    if(ret != QHYCCD_SUCCESS)
+    {
+        OutputDebug("EZCAPWARNING | %s | %s | SetQHYCCDDebayerOnOff() Failed! ret=%d", __FILE__, __FUNCTION__, ret);
+    }
+
+    ret = libqhyccd->SetQHYCCDParam(camhandle, CONTROL_TRANSFERBIT, ix.Bits);
+    if(ret != QHYCCD_SUCCESS)
+    {
+        OutputDebug("EZCAPERROR | %s | %s | SetQHYCCDParam() CONTROL_TRANSFERBIT Failed!", __FILE__, __FUNCTION__);
+        QMessageBox::critical(this,tr("Error"),tr("Camera switch bit depth failed!"), QMessageBox::Ok);
+        ix.Bits = oldBits;
+        ix.Color = oldColor;
+        ix.Bits_Last = oldBits;
+        ix.Color_Last = oldColor;
+        libqhyccd->SetQHYCCDDebayerOnOff(camhandle, ix.Color);
+        libqhyccd->SetQHYCCDParam(camhandle, CONTROL_TRANSFERBIT, ix.Bits);
+        libqhyccd->BeginQHYCCDLive(camhandle);
+        mainWidget->liveCap->start();
+        mainWidget->threadProcessImage->start();
+        ui->comBoxLiveBits->blockSignals(false);
+        RestoreSettingPanels();
+        return;
+    }
+
+    ret = libqhyccd->SetQHYCCDResolution(camhandle, ix.RoiX, ix.RoiY, ix.RoiW, ix.RoiH);
+    if(ret != QHYCCD_SUCCESS)
+    {
+        OutputDebug("EZCAPWARNING | %s | %s | SetQHYCCDResolution() after bit switch Failed! ret=%d", __FILE__, __FUNCTION__, ret);
     }
 
     if(ResetParameters())
     {
         OutputDebug("EZCAPERROR | %s | %s | Reset Parameters failed", __FILE__, __FUNCTION__);
         QMessageBox::critical(this,tr("Error"),tr("Camera switch reset parameters failed!"), QMessageBox::Ok);
-
         CloseCamera();
         emit mainWidget->disconnect_camera();
+        ui->comBoxLiveBits->blockSignals(false);
+        RestoreSettingPanels();
         return;
     }
 
@@ -3579,10 +3654,15 @@ void ManagementMenu::on_comBoxLiveBits_currentTextChanged(const QString &arg1)
     if(ret == QHYCCD_ERROR)
     {
         OutputDebug("EZCAPWARNING | %s | %s | BeginQHYCCDLive() Failed!", __FILE__, __FUNCTION__);
+        ui->comBoxLiveBits->blockSignals(false);
+        RestoreSettingPanels();
         return;
     }
+
     mainWidget->liveCap->start();
     mainWidget->threadProcessImage->start();
+    ui->comBoxLiveBits->blockSignals(false);
+    RestoreSettingPanels();
 }
 
 void ManagementMenu::on_comBoxLiveColor_currentTextChanged(const QString &arg1)
@@ -4485,5 +4565,4 @@ void ManagementMenu::on_cBox_autoStretchList_currentIndexChanged(int index)
 
     ui->pBtn_auto_histogram->click();
 }
-
 

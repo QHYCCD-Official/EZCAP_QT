@@ -2,6 +2,8 @@
 #define GPSTOOL_H
 
 #include <QDialog>
+#include <QDateTime>
+#include <QElapsedTimer>
 
 namespace Ui {
 class gpsTool;
@@ -25,6 +27,12 @@ private slots:
     void on_pBtn_GPSSetUTC_clicked();
 
     void updateGPSInfo();
+
+    void on_pBtn_GPSSyncSystemTime_clicked();
+
+    void syncSystemTimeToGPS();
+
+    void syncSystemTimeOnTimer();
 
     void on_comBox_LEDCalMode_currentTextChanged(const QString &arg1);
 
@@ -56,6 +64,11 @@ private slots:
 
 private:
     Ui::gpsTool *ui;
+
+    QDateTime gpsUtcTime;
+    QElapsedTimer gpsFrameAge;
+    bool gpsTimeValid;
+    bool gpsSyncEnabled;
 
     double Date2Js1995(int y, int M, int d, int h, int m, int s);
 };

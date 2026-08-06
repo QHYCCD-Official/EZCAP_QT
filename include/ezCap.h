@@ -380,6 +380,7 @@ public:
     QLabel *statusLabel_mousePos;//显示当前鼠标位置坐标的label对象
     QLabel *statusLabel_rgb;//显示当前位置图像rgb值的对象
     QLabel *statusLabel_Temp;//显示当前相机温度
+    QLabel *statusLabel_FPGATemp;//显示当前 FPGA 温度
     QLabel *statusLabel_RH;//显示当前密封腔内的湿度
     QLabel *statusLabel_PRESS;//显示当前压力
     QLabel *statusLabel_msg;//显示提示信息

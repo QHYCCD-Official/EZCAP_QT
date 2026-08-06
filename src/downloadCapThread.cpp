@@ -6,9 +6,12 @@
 #include "opencv2/opencv.hpp"
 
 #include <QDebug>
+#include <QMutex>
+#include <QMutexLocker>
 #include <QTime>
 
 extern qhyccd_handle *camhandle;
+extern QMutex gpsMutex;
 
 DownloadCapThread::DownloadCapThread(QObject *parent) :
     QThread(parent)
@@ -199,8 +202,11 @@ void DownloadCapThread::run()
 
         if(ix.GPS_Fun && ix.GPS)
         {
-            memset(ix.ImgData_GPS, 0, 1024);
-            memcpy(ix.ImgData_GPS, ix.ImgData, 1024);
+            {
+                QMutexLocker locker(&gpsMutex);
+                memset(ix.ImgData_GPS, 0, 1024);
+                memcpy(ix.ImgData_GPS, ix.ImgData, 1024);
+            }
             emit updateGPSInfo();
         }
 

@@ -4,6 +4,13 @@
 #include "myStruct.h"
 #include "outputdebug.h"
 #include <QDateTime>
+#include <QMutex>
+#include <QMutexLocker>
+#include <QTimer>
+
+#ifdef Q_OS_WIN
+#include <windows.h>
+#endif
 
 #if (QT_VERSION < QT_VERSION_CHECK(6, 0, 0))
 #include <QTextCodec>
@@ -11,12 +18,20 @@
 
 gpsTool *gpsTool_dialog;
 extern qhyccd_handle *camhandle;
+extern QMutex gpsMutex;
 
 gpsTool::gpsTool(QWidget *parent) :
     QDialog(parent),
-    ui(new Ui::gpsTool)
+    ui(new Ui::gpsTool),
+    gpsTimeValid(false),
+    gpsSyncEnabled(false)
 {
     ui->setupUi(this);
+
+    QTimer *syncTimer = new QTimer(this);
+    syncTimer->setInterval(1000);
+    connect(syncTimer, SIGNAL(timeout()), this, SLOT(syncSystemTimeOnTimer()));
+    syncTimer->start();
 }
 
 gpsTool::~gpsTool()
@@ -732,38 +747,50 @@ QString removeInvalidCharacters(const QString& str) {
 
 void gpsTool::updateGPSInfo()
 {
-    int now_flag = (ix.ImgData_GPS[33] / 16) % 4;
-    int pps = 256 * 256 * ix.ImgData_GPS[41] + 256 * ix.ImgData_GPS[42] + ix.ImgData_GPS[43];
-    long seqNumber = 256 * 256 * 256 * ix.ImgData_GPS[0] + 256 * 256 * ix.ImgData_GPS[1] + 256 * ix.ImgData_GPS[2] + ix.ImgData_GPS[3];
-    int width = 256 * ix.ImgData_GPS[5] + ix.ImgData_GPS[6];
-    int height = 256 * ix.ImgData_GPS[7] + ix.ImgData_GPS[8];
-    long temp = 256 * 256 * 256 * ix.ImgData_GPS[9] + 256 * 256 * ix.ImgData_GPS[10] + 256 * ix.ImgData_GPS[11] + ix.ImgData_GPS[12];
+    unsigned char gpsData[1024] = { 0 };
+    {
+        QMutexLocker locker(&gpsMutex);
+        if(!ix.ImgData_GPS)
+        {
+            gpsTimeValid = false;
+            ui->label_GPSSyncStatus->setText("sync_status: no GPS data");
+            return;
+        }
+        memcpy(gpsData, ix.ImgData_GPS, sizeof(gpsData));
+    }
+
+    int now_flag = (gpsData[33] / 16) % 4;
+    int pps = 256 * 256 * gpsData[41] + 256 * gpsData[42] + gpsData[43];
+    long seqNumber = 256 * 256 * 256 * gpsData[0] + 256 * 256 * gpsData[1] + 256 * gpsData[2] + gpsData[3];
+    int width = 256 * gpsData[5] + gpsData[6];
+    int height = 256 * gpsData[7] + gpsData[8];
+    long temp = 256 * 256 * 256 * gpsData[9] + 256 * 256 * gpsData[10] + 256 * gpsData[11] + gpsData[12];
     int south = temp > 1000000000;
     int deg = (temp % 1000000000) / 10000000;
     int min = (temp % 10000000) / 100000;
     double fractMin = (temp % 100000) / 100000.0;
     double latitude = (deg + (min + fractMin) / 60.0) * (south==0?1:-1);
-    temp = 256 * 256 * 256 * ix.ImgData_GPS[13] + 256 * 256 * ix.ImgData_GPS[14] + 256 * ix.ImgData_GPS[15] + ix.ImgData_GPS[16];
+    temp = 256 * 256 * 256 * gpsData[13] + 256 * 256 * gpsData[14] + 256 * gpsData[15] + gpsData[16];
     int west = temp > 1000000000;
     deg = (temp % 1000000000) / 1000000;
     min = (temp % 1000000) / 10000;
     fractMin = (temp % 10000) / 10000.0;
     double longitude = (deg + (min + fractMin) / 60.0) * (west==0?1:-1);
-    unsigned long start_sec = 256 * 256 * 256 * ix.ImgData_GPS[18] + 256 * 256 * ix.ImgData_GPS[19] + 256 * ix.ImgData_GPS[20] + ix.ImgData_GPS[21];
-    unsigned long start_us = (256 * 256 * ix.ImgData_GPS[22] + 256 * ix.ImgData_GPS[23] + ix.ImgData_GPS[24]) / 10;
-    unsigned long end_sec = 256 * 256 * 256 * ix.ImgData_GPS[26] + 256 * 256 * ix.ImgData_GPS[27] + 256 * ix.ImgData_GPS[28] + ix.ImgData_GPS[29];
-    unsigned long end_us = (256 * 256 * ix.ImgData_GPS[30] + 256 * ix.ImgData_GPS[31] + ix.ImgData_GPS[32]) / 10;
-    unsigned long now_sec = 256 * 256 * 256 * ix.ImgData_GPS[34] + 256 * 256 * ix.ImgData_GPS[35] + 256 * ix.ImgData_GPS[36] + ix.ImgData_GPS[37];
-    unsigned long now_us = (256 * 256 * ix.ImgData_GPS[38] + 256 * ix.ImgData_GPS[39] + ix.ImgData_GPS[40]) / 10;
+    unsigned long start_sec = 256 * 256 * 256 * gpsData[18] + 256 * 256 * gpsData[19] + 256 * gpsData[20] + gpsData[21];
+    unsigned long start_us = (256 * 256 * gpsData[22] + 256 * gpsData[23] + gpsData[24]) / 10;
+    unsigned long end_sec = 256 * 256 * 256 * gpsData[26] + 256 * 256 * gpsData[27] + 256 * gpsData[28] + gpsData[29];
+    unsigned long end_us = (256 * 256 * gpsData[30] + 256 * gpsData[31] + gpsData[32]) / 10;
+    unsigned long now_sec = 256 * 256 * 256 * gpsData[34] + 256 * 256 * gpsData[35] + 256 * gpsData[36] + gpsData[37];
+    unsigned long now_us = (256 * 256 * gpsData[38] + 256 * gpsData[39] + gpsData[40]) / 10;
     unsigned long exposure = (unsigned long)(((long)end_sec - (long)start_sec) * 1000 * 1000 + ((long)end_us - (long)start_us));
     unsigned long elevation = 0;
     int gnss = 0;
     int antenna = 0;
     if(ix.CamID.contains("QHY990") || ix.CamID.contains("QHY991"))
     {
-        elevation = ix.ImgData_GPS[44] * 256 * 256 + ix.ImgData_GPS[45] * 256 + ix.ImgData_GPS[46];
-        antenna = ix.ImgData_GPS[47] % 10;
-        gnss = ix.ImgData_GPS[47] / 10;
+        elevation = gpsData[44] * 256 * 256 + gpsData[45] * 256 + gpsData[46];
+        antenna = gpsData[47] % 10;
+        gnss = gpsData[47] / 10;
     }
 
     drive_time UTC_start_sec, UTC_end_sec, UTC_now_sec;
@@ -805,25 +832,41 @@ void gpsTool::updateGPSInfo()
     ui->label_GPSInfoNowus->setText(    "now_us     : " + QString::number(now_us, 'f', 1));
     ui->label_GPSInfoLocalTime->setText("local_time : " + ix.GPS_LocalTime);
 
+    gpsUtcTime = QDateTime(QDate(1995, 10, 10), QTime(0, 0), Qt::UTC)
+                     .addSecs(now_sec)
+                     .addMSecs(now_us / 1000);
+    gpsTimeValid = now_flag == 3 && now_sec > 0 && now_us < 1000000 &&
+                   pps > 0 && pps <= 10000500 && gpsUtcTime.isValid() &&
+                   gpsUtcTime.date().year() >= 2020 && gpsUtcTime.date().year() <= 2100;
+    gpsFrameAge.restart();
+    ui->label_GPSUtcTime->setText("gps_utc    : " + gpsUtcTime.toString("yyyy-MM-dd HH:mm:ss.zzz"));
+    if(!gpsTimeValid)
+        ui->label_GPSSyncStatus->setText("sync_status: GPS invalid");
+    else if(!gpsSyncEnabled)
+        ui->label_GPSSyncStatus->setText("sync_status: ready");
+
+    if(gpsSyncEnabled && ix.fps >= 1.0)
+        syncSystemTimeToGPS();
+
     //decode the GPS_RAW head( 0X11 22 33 66)
     int i;
     int rawHeadPosition=0;
-    for (i = 34; i < 1024; i++)
+    for (i = 34; i < 1021; i++)
     {
-        if(ix.ImgData_GPS[i]==0x11)
+        if(gpsData[i]==0x11)
         {
-            if(ix.ImgData_GPS[i+1]==0x22 && ix.ImgData_GPS[i+2]==0x33 && ix.ImgData_GPS[i+3]==0x66)
+            if(gpsData[i+1]==0x22 && gpsData[i+2]==0x33 && gpsData[i+3]==0x66)
             {
                 rawHeadPosition=i;
             }
         }
     }
     int rawTailPosition=0;
-    for (i = 34; i < 1024; i++)
+    for (i = 34; i < 1021; i++)
     {
-        if(ix.ImgData_GPS[i]==0xee)
+        if(gpsData[i]==0xee)
         {
-            if(ix.ImgData_GPS[i+1]==0x33 && ix.ImgData_GPS[i+2]==0xcc && ix.ImgData_GPS[i+3]==0x44/* &&
+            if(gpsData[i+1]==0x33 && gpsData[i+2]==0xcc && gpsData[i+3]==0x44/* &&
                ix.ImgDataGPS[i+4]==0xee &&
                ix.ImgDataGPS[i+5]==0x33 && ix.ImgDataGPS[i+6]==0xcc && ix.ImgDataGPS[i+7]==0x44*/ )
             {
@@ -834,20 +877,21 @@ void gpsTool::updateGPSInfo()
 
     //get the raw data length   (raw head position +4)
     int GPS_RAW_LENGTH;
-    GPS_RAW_LENGTH = ix.ImgData_GPS[rawHeadPosition+4]*256*256*256 +
-                     ix.ImgData_GPS[rawHeadPosition+5]*256*256 +
-                     ix.ImgData_GPS[rawHeadPosition+6]*256 +
-                     ix.ImgData_GPS[rawHeadPosition+7];
+    GPS_RAW_LENGTH = rawHeadPosition == 0 ? 0 :
+                     gpsData[rawHeadPosition+4]*256*256*256 +
+                     gpsData[rawHeadPosition+5]*256*256 +
+                     gpsData[rawHeadPosition+6]*256 +
+                     gpsData[rawHeadPosition+7];
 //    printf("GPS_RAW_LENGTH = %d\n", GPS_RAW_LENGTH);
 
-    char rawstr[1024];//, rawstr_t[1024];
+    char rawstr[1024] = { 0 };//, rawstr_t[1024];
 //    int pos = 0;
     if(rawHeadPosition+8+GPS_RAW_LENGTH<1024)
     {
         //get the raw data (raw head position +8)
         for (int j = 0; j < GPS_RAW_LENGTH; j++)
         {
-          rawstr[j] = ix.ImgData_GPS[j+rawHeadPosition+8];
+          rawstr[j] = gpsData[j+rawHeadPosition+8];
 //          if(rawstr[j] >= 0 && rawstr[j] <= 32 || rawstr[j] == 127)
 //          {
 //              printf("j = %d\n", j);
@@ -860,6 +904,90 @@ void gpsTool::updateGPSInfo()
     QString gpsRawData(rawstr);
     QString show = removeInvalidCharacters(gpsRawData);
     ui->label_GPSRawData->setText("Raw Data  : \n" + show);
+}
+
+void gpsTool::on_pBtn_GPSSyncSystemTime_clicked()
+{
+    if(gpsSyncEnabled)
+    {
+        gpsSyncEnabled = false;
+        ui->pBtn_GPSSyncSystemTime->setText("Start system time sync");
+        ui->label_GPSSyncStatus->setText("sync_status: stopped");
+        DBGOPT_INFO("GPS system time synchronization stopped");
+        return;
+    }
+
+    if(!gpsTimeValid || !gpsFrameAge.isValid() || gpsFrameAge.elapsed() > 5000)
+    {
+        ui->label_GPSSyncStatus->setText("sync_status: no valid GPS time");
+        DBGOPT_WARNING("GPS system time synchronization rejected: invalid or stale GPS time");
+        return;
+    }
+
+    gpsSyncEnabled = true;
+    ui->pBtn_GPSSyncSystemTime->setText("Stop system time sync");
+    DBGOPT_INFO("GPS system time synchronization started");
+    syncSystemTimeToGPS();
+}
+
+void gpsTool::syncSystemTimeToGPS()
+{
+    if(!gpsSyncEnabled)
+        return;
+
+    if(!gpsTimeValid || !gpsFrameAge.isValid() || gpsFrameAge.elapsed() > 5000)
+    {
+        ui->label_GPSSyncStatus->setText("sync_status: waiting for valid GPS");
+        return;
+    }
+
+    const QDateTime estimatedGpsUtc = gpsUtcTime.addMSecs(gpsFrameAge.elapsed());
+    const qint64 differenceMs = QDateTime::currentDateTimeUtc().msecsTo(estimatedGpsUtc);
+    ui->label_GPSTimeDifference->setText("time_diff  : " + QString::number(differenceMs) + " ms");
+
+    if(qAbs(differenceMs) <= 20)
+    {
+        ui->label_GPSSyncStatus->setText("sync_status: synchronized");
+        return;
+    }
+
+#ifdef Q_OS_WIN
+    const QDate date = estimatedGpsUtc.date();
+    const QTime time = estimatedGpsUtc.time();
+    SYSTEMTIME systemTime;
+    systemTime.wYear = static_cast<WORD>(date.year());
+    systemTime.wMonth = static_cast<WORD>(date.month());
+    systemTime.wDayOfWeek = static_cast<WORD>(date.dayOfWeek() % 7);
+    systemTime.wDay = static_cast<WORD>(date.day());
+    systemTime.wHour = static_cast<WORD>(time.hour());
+    systemTime.wMinute = static_cast<WORD>(time.minute());
+    systemTime.wSecond = static_cast<WORD>(time.second());
+    systemTime.wMilliseconds = static_cast<WORD>(time.msec());
+
+    if(SetSystemTime(&systemTime))
+    {
+        ui->label_GPSSyncStatus->setText("sync_status: synchronized");
+        DBGOPT_INFO("System UTC synchronized to GPS, previous difference = %lld ms", differenceMs);
+    }
+    else
+    {
+        const DWORD errorCode = GetLastError();
+        gpsSyncEnabled = false;
+        ui->pBtn_GPSSyncSystemTime->setText("Start system time sync");
+        ui->label_GPSSyncStatus->setText("sync_status: failed, error " + QString::number(errorCode));
+        DBGOPT_ERROR("SetSystemTime failed, Windows error = %lu", errorCode);
+    }
+#else
+    gpsSyncEnabled = false;
+    ui->pBtn_GPSSyncSystemTime->setText("Start system time sync");
+    ui->label_GPSSyncStatus->setText("sync_status: Windows only");
+#endif
+}
+
+void gpsTool::syncSystemTimeOnTimer()
+{
+    if(ix.fps < 1.0 || (gpsSyncEnabled && gpsFrameAge.isValid() && gpsFrameAge.elapsed() > 5000))
+        syncSystemTimeToGPS();
 }
 
 void gpsTool::on_pBtnCloseTool_clicked()

@@ -7,6 +7,7 @@
 #include "ui_tempControl.h"
 #include "ezCap.h"
 #include "ui_ezCap.h"
+#include "fpgaAccess.h"
 #include <math.h>
 #include <QPainter>
 
@@ -180,7 +181,21 @@ void ThreadTempControl::run()
                     }
                 }
 
-                mainWidget->statusLabel_Temp->setText(QString("TEMP:") + QString::number(ix.Temp_Now, 'f', 1) + QString::fromUtf8("℃"));//显示温度值
+                mainWidget->statusLabel_Temp->setText(QString("SENSORTEMP:") + QString::number(ix.Temp_Now, 'f', 1) + QString::fromUtf8("℃"));//显示温度值
+                if(ix.FPGATemp_Fun)
+                {
+                    qhyWriteFPGA(camhandle, 150, 0);
+                    qhyWriteFPGA(camhandle, 150, 1);
+                    QThread::msleep(100);
+                    qhyWriteFPGA(camhandle, 150, 0);
+
+                    const uint16_t fpgaRaw =
+                        (static_cast<uint16_t>(qhyReadFPGA(camhandle, 209)) << 8) |
+                        qhyReadFPGA(camhandle, 208);
+                    ix.FPGATemp_Now = 693.0 * static_cast<double>(fpgaRaw) / 1024.0 - 265.0;
+                    mainWidget->statusLabel_FPGATemp->setText(
+                        QString("FPGATEMP:") + QString::number(ix.FPGATemp_Now, 'f', 1) + QString::fromUtf8("℃"));
+                }
                 tempControl_dialog->ui->tempStatus_tempControl->setText(QString::number(ix.Temp_Now, 'f', 1) + QString::fromUtf8("℃"));
                 //tempControl_dialog->ui->PRESSStatus_tempControl->setText(QString::number(ix.Pressure) + "mbar");//显示电压值20200329更换为压力值
                 tempControl_dialog->ui->PWMStatus_tempControl->setText(QString("Power:") +QString::number(ix.PWM_Now*100/255, 'f', 1) + "%");//显示功率
