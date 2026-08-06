@@ -1,4 +1,4 @@
-#include "managementMenu.h"
+﻿#include "managementMenu.h"
 #include "ui_managementMenu.h"
 #include "ezCap.h"
 #include "planner.h"
@@ -747,7 +747,7 @@ void ManagementMenu::camera_connected()
             }
             else if(ix.ExpUnit == 60000000.0)
             {
-                ui->hSlider_exposure_capture->setRange(20, 60);
+                ui->hSlider_exposure_capture->setRange(20, 180);
             }
             else
             {
@@ -758,10 +758,10 @@ void ManagementMenu::camera_connected()
                 if(ix.ExpTime < 1)    ix.ExpTime = 1;
                 if(ix.ExpTime > 1200) ix.ExpTime = 1200;
             }
-            if(ix.ExpUnit == 60000000.0)
+            else if(ix.ExpUnit == 60000000.0)
             {
                 if(ix.ExpTime < 20) ix.ExpTime = 20;
-                if(ix.ExpTime > 60) ix.ExpTime = 60;
+                if(ix.ExpTime > 180) ix.ExpTime = 180;
             }
             else
             {
@@ -775,7 +775,7 @@ void ManagementMenu::camera_connected()
             if(ix.ExpUnit == 1.0) ui->comBoxSingleUnit->setCurrentText("1~1000 us");
             if(ix.ExpUnit == 1000.0) ui->comBoxSingleUnit->setCurrentText("1~1000 ms");
             if(ix.ExpUnit == 1000000.0) ui->comBoxSingleUnit->setCurrentText("1~1200 s");
-            if(ix.ExpUnit == 60000000.0) ui->comBoxSingleUnit->setCurrentText("20~60 min");
+            if(ix.ExpUnit == 60000000.0) ui->comBoxSingleUnit->setCurrentText("20~180 min");
             ui->hSlider_exposure_capture->setValue(ix.ExpTime);
             ui->lineEdit_exposure_capture->setText(QString::number(ix.ExpTime));
 
@@ -787,7 +787,9 @@ void ManagementMenu::camera_connected()
             ui->comBoxSingleUnit->blockSignals(false);
             ui->hSlider_exposure_capture->blockSignals(false);
 
-            ret = libqhyccd->SetQHYCCDParam(camhandle, CONTROL_EXPOSURE, ix.ExpTime * ix.ExpUnit);
+            ret = libqhyccd->SetQHYCCDParam(camhandle, CONTROL_EXPOSURE,
+                applyClampedExposure(ix.ExpTime * ix.ExpUnit, ix.ExpUnit,
+                                     ui->hSlider_exposure_capture, ui->lineEdit_exposure_capture));
             ix.ExpTime_Last = ix.ExpTime;
             ix.ExpUnit_Last = ix.ExpUnit;
 //        }
@@ -1045,7 +1047,7 @@ void ManagementMenu::camera_connected()
 //            else
 //            {
 //                ui->comBoxLiveUnit->setCurrentIndex(2);
-//                ui->sliderLiveExposure->setRange(20, 60);
+//                ui->sliderLiveExposure->setRange(20, 180);
 //                ui->sliderLiveExposure->setValue((int)(ix.ExpTime / 60000000.0));
 //                ui->lineEditLiveExp->setText(QString::number((int)(ix.ExpTime / 60000000)));
 //            }
@@ -1057,7 +1059,7 @@ void ManagementMenu::camera_connected()
             }
             else if(ix.ExpUnit == 60000000.0)
             {
-                ui->sliderLiveExposure->setRange(20, 60);
+                ui->sliderLiveExposure->setRange(20, 180);
             }
             else
             {
@@ -1071,7 +1073,7 @@ void ManagementMenu::camera_connected()
             else if(ix.ExpUnit == 60000000.0)
             {
                 if(ix.ExpTime < 20) ix.ExpTime = 20;
-                if(ix.ExpTime > 60) ix.ExpTime = 60;
+                if(ix.ExpTime > 180) ix.ExpTime = 180;
             }
             else
             {
@@ -1081,7 +1083,7 @@ void ManagementMenu::camera_connected()
             if(ix.ExpUnit == 1.0) ui->comBoxLiveUnit->setCurrentText("1~1000 us");
             if(ix.ExpUnit == 1000.0) ui->comBoxLiveUnit->setCurrentText("1~1000 ms");
             if(ix.ExpUnit == 1000000.0) ui->comBoxLiveUnit->setCurrentText("1~1200 s");
-            if(ix.ExpUnit == 60000000.0) ui->comBoxLiveUnit->setCurrentText("20~60 min");
+            if(ix.ExpUnit == 60000000.0) ui->comBoxLiveUnit->setCurrentText("20~180 min");
             ui->sliderLiveExposure->setValue(ix.ExpTime);
             ui->lineEditLiveExp->setText(QString::number(ix.ExpTime));
 
@@ -1089,7 +1091,9 @@ void ManagementMenu::camera_connected()
             ui->comBoxLiveUnit->blockSignals(false);
             ui->sliderLiveExposure->blockSignals(false);
 
-            ret = libqhyccd->SetQHYCCDParam(camhandle, CONTROL_EXPOSURE, ix.ExpTime * ix.ExpUnit);
+            ret = libqhyccd->SetQHYCCDParam(camhandle, CONTROL_EXPOSURE,
+                applyClampedExposure(ix.ExpTime * ix.ExpUnit, ix.ExpUnit,
+                                     ui->sliderLiveExposure, ui->lineEditLiveExp));
 //        }
 //        else
 //        {
@@ -1517,6 +1521,40 @@ int ManagementMenu::DoubleToInt(double d)
     }
 }
 
+double ManagementMenu::applyClampedExposure(double expUs, double unit, QSlider *slider, QLineEdit *lineEdit)
+{
+    double clamped = ClampExposureUs(expUs);
+    if(unit <= 0.0)
+        return clamped;
+
+    double display = clamped / unit;
+    ix.ExpTime = display;
+
+    // 超出相机范围被约束时，同步更新滑条与输入框显示
+    if(qAbs(clamped - expUs) > 1e-6)
+    {
+        if(lineEdit)
+        {
+            lineEdit->blockSignals(true);
+            lineEdit->setText(QString::number(display));
+            lineEdit->blockSignals(false);
+        }
+        if(slider)
+        {
+            slider->blockSignals(true);
+            int v = qRound(display);
+            if(v < slider->minimum())
+                v = slider->minimum();
+            if(v > slider->maximum())
+                v = slider->maximum();
+            slider->setValue(v);
+            slider->blockSignals(false);
+        }
+    }
+
+    return clamped;
+}
+
 
 void ManagementMenu::CollapseSettingPanels()
 {
@@ -1873,7 +1911,10 @@ int ManagementMenu::ResetParameters()
 
 //    if(ix.ExpTime_Fun)
 //    {
-        ret = libqhyccd->SetQHYCCDParam(camhandle, CONTROL_EXPOSURE, ix.ExpTime * ix.ExpUnit);
+        ret = libqhyccd->SetQHYCCDParam(camhandle, CONTROL_EXPOSURE,
+            applyClampedExposure(ix.ExpTime * ix.ExpUnit, ix.ExpUnit,
+                                 (ix.camStreamMode == 0) ? ui->hSlider_exposure_capture : ui->sliderLiveExposure,
+                                 (ix.camStreamMode == 0) ? ui->lineEdit_exposure_capture : ui->lineEditLiveExp));
         if(ret != QHYCCD_SUCCESS)
         {
             OutputDebug("QEZCAPWARNING | %s | %s | SetQHYCCDParam() CONTROL_EXPOSURE Failed!", __FILE__, __FUNCTION__);
@@ -2374,7 +2415,9 @@ void ManagementMenu::on_hSlider_exposure_focus_valueChanged(int value)
     ui->lineEdit_exposure_focus->blockSignals(false);
 
     ix.ExpTime = (double)value;
-    ret = libqhyccd->SetQHYCCDParam(camhandle, CONTROL_EXPOSURE, ix.ExpTime * 1000.0);
+    ret = libqhyccd->SetQHYCCDParam(camhandle, CONTROL_EXPOSURE,
+        applyClampedExposure(ix.ExpTime * 1000.0, 1000.0,
+                             ui->hSlider_exposure_focus, ui->lineEdit_exposure_focus));
     ix.ExpTime_Last = ix.ExpTime;
 }
 
@@ -2649,13 +2692,19 @@ void ManagementMenu::on_lineEdit_exposure_capture_textChanged(const QString &arg
         ui->lineEdit_exposure_capture->setText(QString::number(ui->hSlider_exposure_capture->minimum()));
     }
 
-    // The slider remains integer-based, but the line edit is the authoritative
-    // value so a fractional exposure is not lost when Capture is pressed.
-    ui->hSlider_exposure_capture->blockSignals(true);
-    ui->hSlider_exposure_capture->setValue(qRound(exposure));
-    ui->hSlider_exposure_capture->blockSignals(false);
+    // 按相机 ExpTime_Min/Max 约束；若被约束会同步更新控件
+    double expUs = exposure * ix.ExpUnit;
+    double clampedUs = applyClampedExposure(expUs, ix.ExpUnit,
+                         ui->hSlider_exposure_capture, ui->lineEdit_exposure_capture);
 
-    ix.ExpTime = exposure;
+    // 未被相机约束时，仍保持滑条与输入框同步（输入框可保留小数）
+    if(qAbs(clampedUs - expUs) <= 1e-6)
+    {
+        ui->hSlider_exposure_capture->blockSignals(true);
+        ui->hSlider_exposure_capture->setValue(qRound(exposure));
+        ui->hSlider_exposure_capture->blockSignals(false);
+        ix.ExpTime = exposure;
+    }
 }
 
 void ManagementMenu::on_comBoxSingleUnit_currentTextChanged()
@@ -2666,9 +2715,15 @@ void ManagementMenu::on_comBoxSingleUnit_currentTextChanged()
         ix.ExpUnit = 1000.0;
     else if(ui->comBoxSingleUnit->currentText() == "1~1200 s")
         ix.ExpUnit = 1000000.0;
-    else if(ui->comBoxSingleUnit->currentText() == "20~60 min")
+    else if(ui->comBoxSingleUnit->currentText() == "20~180 min")
         ix.ExpUnit = 60 * 1000000.0;
 
+    if(ix.ExpUnit == 1000000.0)
+        ui->hSlider_exposure_capture->setRange(1, 1200);
+    else if(ix.ExpUnit == 60000000.0)
+        ui->hSlider_exposure_capture->setRange(20, 180);
+    else
+        ui->hSlider_exposure_capture->setRange(1, 1000);
 }
 
 void ManagementMenu::on_bin1x1_toggled(bool checked)
@@ -3221,7 +3276,7 @@ void ManagementMenu::setCaptureExp15min()
 
 void ManagementMenu::setCaptureExp30min()
 {
-    ui->comBoxSingleUnit->setCurrentText("20~60 min");
+    ui->comBoxSingleUnit->setCurrentText("20~180 min");
     ui->hSlider_exposure_capture->setValue(30);
 ////    ui->label_exposure_capture->setText("1800s");
 //    ix.ExpTime = 30.0;//1800000;
@@ -3736,7 +3791,9 @@ void ManagementMenu::on_lineEditLiveExp_textChanged(const QString &arg1)
     ui->sliderLiveExposure->blockSignals(false);
 
     ix.ExpTime = ui->lineEditLiveExp->text().toDouble();
-    ret = libqhyccd->SetQHYCCDParam(camhandle, CONTROL_EXPOSURE, ix.ExpTime * ix.ExpUnit);
+    ret = libqhyccd->SetQHYCCDParam(camhandle, CONTROL_EXPOSURE,
+        applyClampedExposure(ix.ExpTime * ix.ExpUnit, ix.ExpUnit,
+                             ui->sliderLiveExposure, ui->lineEditLiveExp));
 }
 
 void ManagementMenu::on_sliderLiveExposure_valueChanged(int value)
@@ -3762,11 +3819,14 @@ void ManagementMenu::on_sliderLiveExposure_valueChanged(int value)
     ui->lineEditLiveExp->blockSignals(false);
 
     ix.ExpTime = ui->sliderLiveExposure->value();
-    ret = libqhyccd->SetQHYCCDParam(camhandle, CONTROL_EXPOSURE, ix.ExpTime * ix.ExpUnit);
+    ret = libqhyccd->SetQHYCCDParam(camhandle, CONTROL_EXPOSURE,
+        applyClampedExposure(ix.ExpTime * ix.ExpUnit, ix.ExpUnit,
+                             ui->sliderLiveExposure, ui->lineEditLiveExp));
 }
 
 void ManagementMenu::on_comBoxLiveUnit_currentIndexChanged(int index)
 {
+    Q_UNUSED(index);
     uint32_t ret = QHYCCD_ERROR;
     double ExpTime_Last = ix.ExpTime * ix.ExpUnit;
 
@@ -3775,6 +3835,7 @@ void ManagementMenu::on_comBoxLiveUnit_currentIndexChanged(int index)
     if(ui->comBoxLiveUnit->currentText() == "1~1000 us")
     {
         ix.ExpUnit = 1.0;
+        ui->sliderLiveExposure->setRange(1, 1000);
         if(ExpTime_Last >= 1000.0)
         {
             ui->sliderLiveExposure->setValue(1000);
@@ -3785,6 +3846,7 @@ void ManagementMenu::on_comBoxLiveUnit_currentIndexChanged(int index)
     else if(ui->comBoxLiveUnit->currentText() == "1~1000 ms")
     {
         ix.ExpUnit = 1000.0;
+        ui->sliderLiveExposure->setRange(1, 1000);
         if(ExpTime_Last >= 1000000.0)
         {
             ui->sliderLiveExposure->setValue(1000);
@@ -3801,6 +3863,7 @@ void ManagementMenu::on_comBoxLiveUnit_currentIndexChanged(int index)
     else if(ui->comBoxLiveUnit->currentText() == "1~1200 s")
     {
         ix.ExpUnit = 1000000.0;
+        ui->sliderLiveExposure->setRange(1, 1200);
         if(ExpTime_Last >= 1200000000.0)
         {
             ui->sliderLiveExposure->setValue(1200);
@@ -3814,9 +3877,10 @@ void ManagementMenu::on_comBoxLiveUnit_currentIndexChanged(int index)
             ix.ExpTime = 1.0;
         }
     }
-    else if(ui->comBoxLiveUnit->currentText() == "20~60 min")
+    else if(ui->comBoxLiveUnit->currentText() == "20~180 min")
     {
         ix.ExpUnit = 60000000.0;
+        ui->sliderLiveExposure->setRange(20, 180);
         if(ExpTime_Last <= 1200000000.0)
         {
             ui->sliderLiveExposure->setValue(20);
@@ -3827,7 +3891,9 @@ void ManagementMenu::on_comBoxLiveUnit_currentIndexChanged(int index)
     ui->sliderLiveExposure->blockSignals(false);
     ui->lineEditLiveExp->blockSignals(false);
 
-    ret = libqhyccd->SetQHYCCDParam(camhandle, CONTROL_EXPOSURE, ix.ExpTime * ix.ExpUnit);
+    ret = libqhyccd->SetQHYCCDParam(camhandle, CONTROL_EXPOSURE,
+        applyClampedExposure(ix.ExpTime * ix.ExpUnit, ix.ExpUnit,
+                             ui->sliderLiveExposure, ui->lineEditLiveExp));
     if(ret == QHYCCD_SUCCESS)
     {
         qDebug() << "SetQHYCCDParam CONTROL_EXPOSURE " << ix.ExpTime;

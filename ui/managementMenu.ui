@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="UTF-8"?>
+﻿<?xml version="1.0" encoding="UTF-8"?>
 <ui version="4.0">
  <class>ManagementMenu</class>
  <widget class="QWidget" name="ManagementMenu">
@@ -1603,7 +1603,7 @@
      </item>
      <item>
       <property name="text">
-       <string>20~60 min</string>
+       <string>20~180 min</string>
       </property>
      </item>
     </widget>
@@ -2879,7 +2879,7 @@
      </item>
      <item>
       <property name="text">
-       <string>20~60 min</string>
+       <string>20~180 min</string>
       </property>
      </item>
     </widget>

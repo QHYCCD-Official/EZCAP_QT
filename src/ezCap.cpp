@@ -1,4 +1,4 @@
-#include "ezCap.h"
+﻿#include "ezCap.h"
 #include "ui_ezCap.h"
 #include "include/fpgaAccess.h"
 #include "mainMenu.h"
@@ -6008,7 +6008,11 @@ void EZCAP::mgrMenu_pBtn_preview_clicked()
 
         if(1000.0 != ix.ExpUnit_Last || managerMenu->ui->hSlider_exposure_preview->value() != ix.ExpTime_Last)
         {
-            ret = libqhyccd->SetQHYCCDParam(camhandle,CONTROL_EXPOSURE, managerMenu->ui->hSlider_exposure_preview->value() * 1000.0);
+            ret = libqhyccd->SetQHYCCDParam(camhandle,CONTROL_EXPOSURE,
+                managerMenu->applyClampedExposure(
+                    managerMenu->ui->hSlider_exposure_preview->value() * 1000.0, 1000.0,
+                    managerMenu->ui->hSlider_exposure_preview,
+                    managerMenu->ui->lineEdit_exposure_preview));
             if(ret == QHYCCD_SUCCESS)
             {
                 ix.ExpUnit_Last = 1000.0;
@@ -6252,7 +6256,11 @@ void EZCAP::mgrMenu_pBtn_live_preview_clicked()
 
             if(1000.0 != ix.ExpUnit_Last || managerMenu->ui->hSlider_exposure_preview->value() != ix.ExpTime_Last)
             {
-                ret = libqhyccd->SetQHYCCDParam(camhandle,CONTROL_EXPOSURE, managerMenu->ui->hSlider_exposure_preview->value() * 1000.0);
+                ret = libqhyccd->SetQHYCCDParam(camhandle,CONTROL_EXPOSURE,
+                    managerMenu->applyClampedExposure(
+                        managerMenu->ui->hSlider_exposure_preview->value() * 1000.0, 1000.0,
+                        managerMenu->ui->hSlider_exposure_preview,
+                        managerMenu->ui->lineEdit_exposure_preview));
                 if(ret == QHYCCD_SUCCESS)
                 {
                     ix.ExpUnit_Last = 1000.0;
@@ -6521,7 +6529,11 @@ void EZCAP::mgrMenu_pBtn_focus_clicked()
 
         if(ix.ExpUnit_Last != 1000.0 || managerMenu->ui->hSlider_exposure_focus->value() != ix.ExpTime_Last)
         {
-            ret = libqhyccd->SetQHYCCDParam(camhandle,CONTROL_EXPOSURE, managerMenu->ui->hSlider_exposure_focus->value()*1000.0);
+            ret = libqhyccd->SetQHYCCDParam(camhandle,CONTROL_EXPOSURE,
+                managerMenu->applyClampedExposure(
+                    managerMenu->ui->hSlider_exposure_focus->value()*1000.0, 1000.0,
+                    managerMenu->ui->hSlider_exposure_focus,
+                    managerMenu->ui->lineEdit_exposure_focus));
             if(ret == QHYCCD_SUCCESS)
             {
                 ix.ExpUnit_Last = 1000.0;
@@ -6745,7 +6757,11 @@ void EZCAP::mgrMenu_pBtn_live_focus_clicked()
 
             if(ix.ExpUnit_Last != 1000.0 || managerMenu->ui->hSlider_exposure_focus->value() != ix.ExpTime_Last)
             {
-                ret = libqhyccd->SetQHYCCDParam(camhandle,CONTROL_EXPOSURE, managerMenu->ui->hSlider_exposure_focus->value()*1000.0);
+                ret = libqhyccd->SetQHYCCDParam(camhandle,CONTROL_EXPOSURE,
+                    managerMenu->applyClampedExposure(
+                        managerMenu->ui->hSlider_exposure_focus->value()*1000.0, 1000.0,
+                        managerMenu->ui->hSlider_exposure_focus,
+                        managerMenu->ui->lineEdit_exposure_focus));
                 if(ret == QHYCCD_SUCCESS)
                 {
                     ix.ExpUnit_Last = 1000.0;
@@ -7625,7 +7641,11 @@ void EZCAP::mgrMenu_pBtn_capture_clicked()
         if(managerMenu->ui->comBoxSingleUnit->currentIndex() == 3) ix.ExpUnit = 60000000.0;
         if(ix.ExpUnit != ix.ExpUnit_Last || ix.ExpTime != ix.ExpTime_Last)
         {
-            ret = libqhyccd->SetQHYCCDParam(camhandle,CONTROL_EXPOSURE, ix.ExpTime*ix.ExpUnit);
+            ret = libqhyccd->SetQHYCCDParam(camhandle,CONTROL_EXPOSURE,
+                managerMenu->applyClampedExposure(
+                    ix.ExpTime*ix.ExpUnit, ix.ExpUnit,
+                    managerMenu->ui->hSlider_exposure_capture,
+                    managerMenu->ui->lineEdit_exposure_capture));
             if(ret == QHYCCD_SUCCESS)
             {
                 ix.ExpUnit_Last = ix.ExpUnit;
@@ -10500,7 +10520,7 @@ void ExecutePlanTable::run()
                             if(managerMenu->ui->comBoxSingleUnit->currentText() == "1~1000 us") unit = "us";
                             if(managerMenu->ui->comBoxSingleUnit->currentText() == "1~1000 ms") unit = "ms";
                             if(managerMenu->ui->comBoxSingleUnit->currentText() == "1~1200 s")  unit = "s";
-                            if(managerMenu->ui->comBoxSingleUnit->currentText() == "20~60 min") unit = "min";
+                            if(managerMenu->ui->comBoxSingleUnit->currentText() == "20~180 min") unit = "min";
                             namez = configIniRead->value("/ScriptName/FileName").toString().trimmed() + "-" + QString::number(iTask) + "-" +
                                     QString::number(managerMenu->ui->hSlider_exposure_capture->value()) + unit +
                                     "-" + QString::number(iRP + 1) + "-CFW" + QString::number(c_cfwPos) + "-Loop" + QString::number(LP) + ".fit";
@@ -10511,7 +10531,7 @@ void ExecutePlanTable::run()
                             if(managerMenu->ui->comBoxSingleUnit->currentText() == "1~1000 us") unit = "us";
                             if(managerMenu->ui->comBoxSingleUnit->currentText() == "1~1000 ms") unit = "ms";
                             if(managerMenu->ui->comBoxSingleUnit->currentText() == "1~1200 s")  unit = "s";
-                            if(managerMenu->ui->comBoxSingleUnit->currentText() == "20~60 min") unit = "min";
+                            if(managerMenu->ui->comBoxSingleUnit->currentText() == "20~180 min") unit = "min";
                             namez = configIniRead->value("/ScriptName/FileName").toString().trimmed() + "-" + QString::number(iTask) + "-" +
                                     QString::number(managerMenu->ui->hSlider_exposure_capture->value()) + unit +
                                     "-" + QString::number(iRP + 1) + "-CFW" + QString::number(c_cfwPos) + ".fit";

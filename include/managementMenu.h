@@ -5,6 +5,9 @@
 #include <QWidget>
 #include <QMenu>
 
+class QSlider;
+class QLineEdit;
+
 namespace Ui {
 class ManagementMenu;
 }
@@ -27,6 +30,9 @@ public:
     int CloseCamera();
     void CollapseSettingPanels(); /* fold live panels while applying readmode/bin/bits/roi */
     void RestoreSettingPanels();  /* restore panels after setting finishes */
+
+    // 将曝光(us)约束到 ExpTime_Min/Max，同步 ix.ExpTime 及对应滑条/输入框，返回约束后的 us
+    double applyClampedExposure(double expUs, double unit, QSlider *slider = nullptr, QLineEdit *lineEdit = nullptr);
 
 private slots:
 

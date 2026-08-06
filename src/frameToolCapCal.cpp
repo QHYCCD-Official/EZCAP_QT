@@ -26,7 +26,7 @@ FrameToolCapCal::~FrameToolCapCal()
 
 void FrameToolCapCal::setEnableUI()
 {
-    if(capCalFlag == 2) libqhyccd->SetQHYCCDParam(camhandle, CONTROL_EXPOSURE, ix.ExpTime);
+    if(capCalFlag == 2) libqhyccd->SetQHYCCDParam(camhandle, CONTROL_EXPOSURE, ClampExposureUs(ix.ExpTime));
 
     ui->radioButton_CapCalDark->setEnabled(true);
     ui->radioButton_CapCalFlat->setEnabled(true);
@@ -57,7 +57,7 @@ void FrameToolCapCal::on_btnStartDarkCap_clicked()
     memset(ix.ImgData_CalSave, 0, (ix.ImageW_Max+3)/4*4 * ix.ImageH_Max * 3 * sizeof(uint32_t));
     mainWidget->saveCal();
 
-    if(capCalFlag == 2) libqhyccd->SetQHYCCDParam(camhandle, CONTROL_EXPOSURE, 1.0);
+    if(capCalFlag == 2) libqhyccd->SetQHYCCDParam(camhandle, CONTROL_EXPOSURE, ClampExposureUs(1.0));
     int nowFrame = ix.frame;
     while(ix.frame == nowFrame)
     {

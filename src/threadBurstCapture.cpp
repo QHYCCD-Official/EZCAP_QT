@@ -26,7 +26,7 @@ void ThreadBurstCapture::run()
     {
         ret = libqhyccd->SetQHYCCDBurstModeStartEnd(camhandle, 0, 0);
         double exp = ExpmsList.at(iGroup).toDouble();
-        ret = libqhyccd->SetQHYCCDParam(camhandle, CONTROL_EXPOSURE, exp * 1000.0);
+        ret = libqhyccd->SetQHYCCDParam(camhandle, CONTROL_EXPOSURE, ClampExposureUs(exp * 1000.0));
         double traffic = TrafficList.at(iGroup).toDouble();
         ret = libqhyccd->SetQHYCCDParam(camhandle, CONTROL_USBTRAFFIC, traffic);
         uint32_t start = 1;

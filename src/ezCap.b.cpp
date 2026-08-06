@@ -1,4 +1,4 @@
-#include "ezCap.h"
+﻿#include "ezCap.h"
 #include "ui_ezCap.h"
 #include "mainMenu.h"
 #include "borderLayout.h"
@@ -10007,7 +10007,7 @@ void ExecutePlanTable::run()
                             if(managerMenu->ui->comBoxSingleUnit->currentText() == "1~1000 us") unit = "us";
                             if(managerMenu->ui->comBoxSingleUnit->currentText() == "1~1000 ms") unit = "ms";
                             if(managerMenu->ui->comBoxSingleUnit->currentText() == "1~1200 s")  unit = "s";
-                            if(managerMenu->ui->comBoxSingleUnit->currentText() == "20~60 min") unit = "min";
+                            if(managerMenu->ui->comBoxSingleUnit->currentText() == "20~180 min") unit = "min";
                             namez = configIniRead->value("/ScriptName/FileName").toString().trimmed() + "-" + QString::number(iTask) + "-" +
                                     QString::number(managerMenu->ui->hSlider_exposure_capture->value()) + unit +
                                     "-" + QString::number(iRP + 1) + "-CFW" + QString::number(c_cfwPos) + "-Loop" + QString::number(LP) + ".fit";
@@ -10018,7 +10018,7 @@ void ExecutePlanTable::run()
                             if(managerMenu->ui->comBoxSingleUnit->currentText() == "1~1000 us") unit = "us";
                             if(managerMenu->ui->comBoxSingleUnit->currentText() == "1~1000 ms") unit = "ms";
                             if(managerMenu->ui->comBoxSingleUnit->currentText() == "1~1200 s")  unit = "s";
-                            if(managerMenu->ui->comBoxSingleUnit->currentText() == "20~60 min") unit = "min";
+                            if(managerMenu->ui->comBoxSingleUnit->currentText() == "20~180 min") unit = "min";
                             namez = configIniRead->value("/ScriptName/FileName").toString().trimmed() + "-" + QString::number(iTask) + "-" +
                                     QString::number(managerMenu->ui->hSlider_exposure_capture->value()) + unit +
                                     "-" + QString::number(iRP + 1) + "-CFW" + QString::number(c_cfwPos) + ".fit";

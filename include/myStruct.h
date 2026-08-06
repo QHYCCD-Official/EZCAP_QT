@@ -596,4 +596,17 @@ extern struct IX ix;
 extern struct FOCUSINFO FocusInfo;
 extern struct INIFILEPARAM iniFileParams;
 
+// 将曝光时间（微秒）约束到相机 ExpTime_Min/Max 范围内
+inline double ClampExposureUs(double expUs)
+{
+    if (ix.ExpTime_Max > ix.ExpTime_Min)
+    {
+        if (expUs < ix.ExpTime_Min)
+            expUs = ix.ExpTime_Min;
+        if (expUs > ix.ExpTime_Max)
+            expUs = ix.ExpTime_Max;
+    }
+    return expUs;
+}
+
 #endif // MYSTRUCT_H
